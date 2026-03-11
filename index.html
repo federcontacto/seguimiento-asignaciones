@@ -1,26 +1,727 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- TODO: Set the document title to the name of your application -->
-    <title>Lovable App</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Siniestros - La Caja</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f3f4f6; }
+        .urgente { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { background-color: #fee2e2; }
+            50% { background-color: #fca5a5; }
+        }
+    </style>
+</head>
+<body class="p-6 font-sans text-gray-800">
 
-    <!-- TODO: Update og:title to match your application name -->
-    <meta property="og:title" content="Lovable App" />
-    <meta property="og:description" content="Lovable Generated Project" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Encabezado -->
+        <header class="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm">
+            <div>
+                <h1 class="text-2xl font-bold text-blue-800"><i class="fas fa-car-crash mr-2"></i>Gestor de Siniestros</h1>
+                <p class="text-gray-500 text-sm mt-1">Estudio Alonso y Asociados</p>
+                <div class="mt-3 flex gap-4">
+                    <button onclick="toggleModal('modal-config')" class="text-sm text-gray-600 hover:text-blue-800 font-medium"><i class="fas fa-cog"></i> Tipos y Tarifas</button>
+                    <button onclick="toggleModal('modal-links')" class="text-sm text-gray-600 hover:text-blue-800 font-medium"><i class="fas fa-external-link-alt"></i> Links Útiles</button>
+                </div>
+            </div>
+            <div class="text-right flex flex-col items-end">
+                <div class="flex gap-4 mb-3 items-end">
+                    <div class="text-right">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">A Terminar</p>
+                        <p class="text-2xl font-bold text-orange-500" id="total-a-terminar">$ 0</p>
+                    </div>
+                    <div class="w-px h-8 bg-gray-300 mb-1"></div>
+                    <div class="text-right">
+                        <p class="text-xs text-gray-500 uppercase tracking-wide">A Facturar</p>
+                        <p class="text-2xl font-bold text-green-600" id="total-cobrar">$ 0</p>
+                    </div>
+                </div>
+                <button onclick="abrirModalNuevo()" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition shadow">
+                    <i class="fas fa-plus mr-2"></i> Nueva Asignación
+                </button>
+            </div>
+        </header>
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@Lovable" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-  </head>
+        <!-- Panel Principal: Lista de Siniestros -->
+        <div class="bg-white p-6 rounded-xl shadow-sm">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 border-b pb-4 gap-4">
+                <h2 class="text-lg font-bold">Siniestros Activos</h2>
+                <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                    <div class="relative w-full sm:w-80">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" id="buscador-siniestros" placeholder="Buscar ID, Siniestro, Patente, Asegurado..." class="w-full pl-10 pr-3 py-2 text-sm border rounded shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-gray-50" oninput="renderSiniestros()">
+                    </div>
+                    <select id="filtro-estado" class="text-sm border rounded p-2 shadow-sm bg-gray-50" onchange="renderSiniestros()">
+                        <option value="Todos">Todos los estados</option>
+                        <option value="Asignado">Asignado</option>
+                        <option value="Primer Contacto">Primer Contacto</option>
+                        <option value="En analisis">En análisis</option>
+                        <option value="Enviado">Enviado</option>
+                    </select>
+                </div>
+            </div>
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detalle Siniestro</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asegurado</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fechas</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Honorario</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-body" class="bg-white divide-y divide-gray-200">
+                        <!-- Los datos se inyectan acá -->
+                    </tbody>
+                </table>
+                <div id="empty-state" class="text-center py-10 hidden">
+                    <i class="fas fa-folder-open text-4xl text-gray-300 mb-3"></i>
+                    <p class="text-gray-500">No hay siniestros cargados.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL NUEVA ASIGNACIÓN -->
+    <div id="modal-nuevo" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 overflow-y-auto h-full w-full flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-6xl flex flex-col max-h-[95vh]">
+            <div class="flex justify-between items-center p-5 border-b">
+                <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-magic text-purple-600 mr-2"></i>Cargar Asignación</h2>
+                <button onclick="toggleModal('modal-nuevo')" class="text-gray-500 hover:text-red-500 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-5 grid grid-cols-1 md:grid-cols-2 gap-8">
+                
+                <!-- Columna Izquierda: Espacio Mágico -->
+                <div class="bg-purple-50 p-5 rounded-xl border border-purple-100 flex flex-col gap-4">
+                    <div>
+                        <h3 class="font-bold text-purple-800 mb-1"><i class="fas fa-wand-magic-sparkles mr-2"></i>Espacio Mágico</h3>
+                        <p class="text-xs text-purple-600 mb-3">Pegá el cuerpo del mail o subí el archivo .eml para autocompletar el formulario.</p>
+                    </div>
+                    
+                    <textarea id="texto-magico" rows="10" class="w-full text-sm border-purple-200 rounded p-3 focus:ring-purple-500 focus:border-purple-500 shadow-inner flex-1" placeholder="Pegá aquí el asunto y cuerpo del correo que te envió La Caja..."></textarea>
+                    
+                    <div class="relative">
+                        <input type="file" id="archivo-eml" accept=".eml" class="hidden" onchange="leerArchivoEml(this)">
+                        <button onclick="document.getElementById('archivo-eml').click()" class="w-full bg-white border border-purple-300 text-purple-700 py-2 px-4 rounded text-sm hover:bg-purple-100 transition flex justify-center items-center">
+                            <i class="fas fa-file-arrow-up mr-2"></i> Subir archivo .eml
+                        </button>
+                    </div>
+
+                    <button type="button" onclick="procesarTextoMagico()" class="w-full bg-purple-600 text-white font-bold py-3 rounded hover:bg-purple-700 transition shadow mt-auto">
+                        Analizar Texto
+                    </button>
+                    <p id="msg-magico" class="text-center text-xs text-green-600 font-bold hidden"><i class="fas fa-check-circle"></i> Datos extraídos</p>
+                </div>
+
+                <!-- Columna Derecha: Formulario Real -->
+                <form id="form-siniestro" class="space-y-4 flex flex-col justify-start">
+                    <input type="hidden" id="siniestro-id">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">ID Asignación</label>
+                            <input type="text" id="id-asignacion" placeholder="Ej: 880692" required class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-gray-50">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">N° Siniestro</label>
+                            <input type="text" id="n-siniestro" placeholder="Ej: 1-4-1-..." required class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-gray-50">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Póliza</label>
+                            <input type="text" id="n-poliza" placeholder="Ej: 54123456" class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-gray-50">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Patente</label>
+                            <input type="text" id="patente-vehiculo" class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border uppercase bg-gray-50">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Asegurado (Nombre y Apellido)</label>
+                        <input type="text" id="nombre-asegurado" required class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-gray-50">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Email del Asegurado</label>
+                        <input type="email" id="email-asegurado" placeholder="ejemplo@correo.com" class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-gray-50">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Fecha y Hora de Incidente</label>
+                        <input type="text" id="fecha-incidente" placeholder="Ej: 18/12/2025 13:00" class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-gray-50">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Tipo de Siniestro</label>
+                            <select id="tipo-siniestro" required class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-gray-50">
+                                <option value="">Seleccionar...</option>
+                            </select>
+                            <p id="info-tarifa" class="text-xs text-blue-600 mt-1 hidden"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Fecha de Asignación</label>
+                            <input type="date" id="fecha-asignacion" required class="mt-1 block w-full rounded border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border bg-gray-50">
+                        </div>
+                    </div>
+
+                    <div class="pt-4 mt-auto">
+                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded hover:bg-blue-700 transition shadow">
+                            Guardar Siniestro
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL LINKS ÚTILES -->
+    <div id="modal-links" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50 p-4">
+        <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-lg">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-lg font-bold"><i class="fas fa-external-link-alt text-blue-600 mr-2"></i>Accesos Rápidos</h2>
+                <button onclick="toggleModal('modal-links')" class="text-gray-500 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <ul id="lista-links-ui" class="space-y-3 text-sm max-h-96 overflow-y-auto pr-2">
+                <!-- Links inyectados -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIGURACIÓN -->
+    <div id="modal-config" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50 p-4">
+        <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-3xl">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-lg font-bold"><i class="fas fa-sliders-h mr-2 text-gray-600"></i>Configuración General</h2>
+                <button onclick="toggleModal('modal-config')" class="text-gray-500 hover:text-red-500"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            
+            <div class="max-h-[75vh] overflow-y-auto pr-2">
+                <!-- Tarifas -->
+                <form id="form-abm-tipo" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 bg-gray-50 p-4 rounded border">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-medium text-gray-700">Nombre Siniestro</label>
+                        <input type="text" id="abm-nombre" required class="mt-1 block w-full rounded border-gray-300 p-1.5 border text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">Días Límite</label>
+                        <input type="number" id="abm-dias" required min="1" class="mt-1 block w-full rounded border-gray-300 p-1.5 border text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">Honorario ($)</label>
+                        <input type="number" id="abm-honorario" required min="0" class="mt-1 block w-full rounded border-gray-300 p-1.5 border text-sm">
+                    </div>
+                    <div class="md:col-span-4 text-right">
+                        <button type="submit" class="bg-blue-600 text-white text-sm font-bold py-1.5 px-3 rounded hover:bg-blue-700">Guardar Tipo</button>
+                    </div>
+                </form>
+
+                <div class="max-h-40 overflow-y-auto border rounded mb-6">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-2 text-left">Tipo</th>
+                                <th class="px-4 py-2 text-center">Días</th>
+                                <th class="px-4 py-2 text-right">Honorario</th>
+                                <th class="px-4 py-2 text-center">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-tipos-body" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+
+                <!-- Links ABM -->
+                <h3 class="text-md font-bold mb-2 border-t pt-4"><i class="fas fa-link mr-2 text-gray-600"></i>Administrar Links</h3>
+                <form id="form-abm-link" class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 bg-gray-50 p-4 rounded border">
+                    <input type="hidden" id="abm-link-id">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-medium">Nombre</label>
+                        <input type="text" id="abm-link-nombre" required class="mt-1 block w-full rounded p-1.5 border text-sm">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-medium">URL</label>
+                        <input type="url" id="abm-link-url" required class="mt-1 block w-full rounded p-1.5 border text-sm">
+                    </div>
+                    <div class="flex items-end">
+                        <button type="submit" class="w-full bg-blue-600 text-white text-sm font-bold py-1.5 px-3 rounded hover:bg-blue-700">Guardar</button>
+                    </div>
+                </form>
+
+                <div class="max-h-40 overflow-y-auto border rounded mb-6">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <tbody id="tabla-links-body" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+
+                <!-- Plantilla Mail -->
+                <div class="border-t pt-4 pb-2">
+                    <h3 class="text-md font-bold mb-2"><i class="fas fa-envelope mr-2 text-gray-600"></i>Plantilla Primer Contacto</h3>
+                    <p class="text-xs text-gray-500 mb-2">Variables disponibles: <b>[N_SINIESTRO]</b>, <b>[ASEGURADO]</b> y <b>[FECHA_INCIDENTE]</b>.</p>
+                    <textarea id="plantilla-texto" rows="10" class="w-full rounded border p-2 text-sm"></textarea>
+                    <div class="flex justify-end mt-2">
+                        <button onclick="guardarPlantilla()" class="bg-blue-600 text-white text-sm font-bold py-1.5 px-3 rounded hover:bg-blue-700">Guardar Plantilla</button>
+                    </div>
+                </div>
+
+                <!-- Respaldo de Datos -->
+                <div class="border-t pt-4 pb-2 mt-4">
+                    <h3 class="text-md font-bold mb-2"><i class="fas fa-database mr-2 text-gray-600"></i>Respaldo y Seguridad</h3>
+                    <p class="text-xs text-gray-500 mb-3">Descargá una copia de todos tus siniestros, tarifas y plantillas. Usala para mudar de PC o como backup.</p>
+                    <div class="flex gap-4">
+                        <button onclick="exportarDatos()" class="flex-1 bg-green-600 text-white text-sm font-bold py-2 px-3 rounded hover:bg-green-700 flex justify-center items-center shadow-sm"><i class="fas fa-download mr-2"></i> Exportar Copia</button>
+                        <div class="flex-1 relative">
+                            <input type="file" id="archivo-importar" accept=".json" class="hidden" onchange="importarDatos(this)">
+                            <button onclick="document.getElementById('archivo-importar').click()" class="w-full bg-orange-500 text-white text-sm font-bold py-2 px-3 rounded hover:bg-orange-600 flex justify-center items-center shadow-sm"><i class="fas fa-upload mr-2"></i> Importar Copia</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURACIÓN MAESTRA ---
+        const tarifasDefault = {
+            "Destruccion Total": { diasLimite: 15, honorario: 85000 },
+            "Robo Parcial": { diasLimite: 10, honorario: 35000 },
+            "Robo Total": { diasLimite: 15, honorario: 65000 },
+            "RC Lesiones": { diasLimite: 7, honorario: 45000 },
+            "Daños Materiales": { diasLimite: 5, honorario: 25000 }
+        };
+        let tarifas = JSON.parse(localStorage.getItem('tarifas_lacaja')) || tarifasDefault;
+
+        const plantillaDefault = `Sr/a [ASEGURADO], en representación del Estudio Alonso & Asociados S.A., verificadores de Siniestros de La Caja de Ahorro y Seguro S.A., tengo el agrado de dirigirme a usted a los efectos de comunicarle que hemos sido designados para proceder a la verificación del Siniestro N° [N_SINIESTRO], denunciado ante dicha aseguradora como ocurrido el día [FECHA_INCIDENTE] horas, en donde participara el vehículo amparado en póliza N° [solicitar el numero antes de enviar el mail]. En tal sentido y conforme lo estipulado en el Art. 46, 2do. Párrafo, de la Ley de Seguros Nº 17.418, la invitamos a que dé cumplimiento a las siguientes cargas de ley, a saber:
+1) Acceda a una entrevista donde usted exponga todo lo relativo al siniestro;
+2) Exhiba documentación tanto personal como del automóvil bajo cobertura,
+3) Permita inspeccionar el vehículo asegurado,
+4) Aportar factura y/o datos del taller mecánico, si es que efectuó reparaciones a su rodado,
+5) Aportar vistas fotográficas y/o videos del momento del siniestro en caso de poseer esto,
+6) Aportar datos filiatorios y de contacto de los terceros en caso de poseerlos;
+7) Aportar constancia por traslado de grúa en caso de haber solicitado este servicio,
+8) Aportar certificados médicos y/o constancias policial en caso de existir
+9) Ratifique o rectifique lo por usted expresado al serle solicitado que reseñara el suceso, en relación lugar de ocurrencia, horario, y demás circunstancias y pormenores en relación al mismo.
+Atento a lo antes citado, deberá responder, conectándose, en días hábiles, de lunes a viernes con el representante de nuestro Estudio, Sr. Matias Ramos, por esta vía o al WhatsApp Nº (011) 6239 7066, en el horario de 10.00 a 17.00 horas.-`;
+        
+        let plantillaMail = localStorage.getItem('plantilla_mail_lacaja_v3') || plantillaDefault;
+
+        const linksDefault = [
+            { id: '1', nombre: 'SSN (Superintendencia)', url: 'https://www.argentina.gob.ar/ssn' },
+            { id: '2', nombre: 'DNRPA (Patentes)', url: 'https://www.dnrpa.gov.ar/' },
+            { id: '3', nombre: 'SINAI (Nacional)', url: 'https://consultainfracciones.seguridadvial.gob.ar/' },
+            { id: '4', nombre: 'CABA - Infracciones', url: 'https://buenosaires.gob.ar/licenciasdeconducir/consulta-de-infracciones/?actas=transito' },
+            { id: '5', nombre: 'PBA - Infracciones', url: 'https://infraccionesba.gba.gob.ar/consulta-infraccion' }
+        ];
+        
+        let linksUtiles = JSON.parse(localStorage.getItem('links_lacaja'));
+        if (!linksUtiles || linksUtiles.length === 0) {
+            linksUtiles = linksDefault;
+            localStorage.setItem('links_lacaja', JSON.stringify(linksUtiles));
+        }
+
+        let siniestros = JSON.parse(localStorage.getItem('siniestros_lacaja_v3')) || JSON.parse(localStorage.getItem('siniestros_lacaja')) || [];
+
+        // --- 2. ESPACIO MÁGICO Y LÓGICA DE CARGA ---
+        function abrirModalNuevo() {
+            document.getElementById('form-siniestro').reset();
+            document.getElementById('siniestro-id').value = '';
+            document.getElementById('texto-magico').value = '';
+            document.getElementById('fecha-asignacion').valueAsDate = new Date();
+            document.getElementById('info-tarifa').classList.add('hidden');
+            toggleModal('modal-nuevo');
+        }
+
+        function editarSiniestro(id) {
+            const s = siniestros.find(x => x.id === id);
+            if (!s) return;
+            
+            document.getElementById('siniestro-id').value = s.id;
+            document.getElementById('id-asignacion').value = s.idAsignacion || '';
+            document.getElementById('n-siniestro').value = s.nSiniestro || '';
+            document.getElementById('n-poliza').value = s.poliza || '';
+            document.getElementById('patente-vehiculo').value = s.patente || '';
+            document.getElementById('nombre-asegurado').value = s.asegurado || '';
+            document.getElementById('email-asegurado').value = s.email || '';
+            document.getElementById('fecha-incidente').value = s.fechaIncidente || '';
+            document.getElementById('fecha-asignacion').value = s.fechaAsignacion || '';
+            
+            const selectTipo = document.getElementById('tipo-siniestro');
+            selectTipo.value = s.tipo || '';
+            selectTipo.dispatchEvent(new Event('change'));
+            
+            toggleModal('modal-nuevo');
+        }
+
+        function leerArchivoEml(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('texto-magico').value = e.target.result;
+                procesarTextoMagico();
+            };
+            reader.readAsText(file);
+        }
+
+        function procesarTextoMagico() {
+            let texto = document.getElementById('texto-magico').value;
+            if(!texto) return;
+
+            // 1. LIMPIEZA INTELIGENTE
+            // Eliminar cabeceras EML para ignorar los emails del remitente/destinatario original
+            let bodyText = texto.replace(/^[\w\-]+:\s.*$/gm, '');
+
+            bodyText = bodyText.replace(/=\r?\n/g, ''); 
+            bodyText = bodyText.replace(/=20/g, ' '); 
+            bodyText = bodyText.replace(/<(br|div|p|tr|td|th|li)[^>]*>/gi, '\n'); 
+            bodyText = bodyText.replace(/<[^>]*>?/gm, ''); 
+            bodyText = bodyText.replace(/&nbsp;/g, ' ');
+            bodyText = bodyText.replace(/\n\s*\n/g, '\n');
+
+            // 2. BUSCAR PATRÓN ID / Siniestro
+            const regexCabecera = /(\d{5,8})\s*(?:\/|_|-|\\)\s*([\d\-]{10,20})/;
+            const matchCabecera = bodyText.match(regexCabecera);
+            
+            if (matchCabecera) {
+                document.getElementById('id-asignacion').value = matchCabecera[1];
+                document.getElementById('n-siniestro').value = matchCabecera[2];
+            } else {
+                const mId = bodyText.match(/(?:id|asignaci[oó]n|asig).*?(\d{5,8})/i);
+                const mSin = bodyText.match(/(?:siniestro|denuncia).*?([\d\-\/]{10,25})/i);
+                if(mId) document.getElementById('id-asignacion').value = mId[1].trim();
+                if(mSin) document.getElementById('n-siniestro').value = mSin[1].trim();
+            }
+
+            // 3. EXTRACCIÓN LÍNEA POR LÍNEA (Asegurado, Email, Fecha)
+            const lineas = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            
+            let email = '';
+            let fechaIncidente = '';
+            let asegurado = '';
+
+            for (let i = 0; i < lineas.length; i++) {
+                const linea = lineas[i].toLowerCase();
+                const lineaOriginal = lineas[i];
+
+                // Asegurado
+                if (!asegurado && (linea === 'asegurado' || linea === 'asegurado:' || linea.includes('nombre del asegurado'))) {
+                    if (i + 1 < lineas.length) {
+                        let cand = lineas[i+1];
+                        if(!cand.toLowerCase().match(/^(patente|dominio|veh[ií]culo|siniestro|id|p[oó]liza|poliza|mail|tel|fecha)/)) {
+                            asegurado = cand;
+                        }
+                    }
+                } else if (!asegurado && linea.startsWith('asegurado:') && linea.length > 10) {
+                    asegurado = lineaOriginal.substring(10).trim();
+                }
+
+                // Email del Asegurado (Evitando correos del header del mail original)
+                if (!email && (linea === 'mail' || linea === 'mail:' || linea === 'e-mail' || linea === 'e-mail:' || linea === 'email' || linea === 'email:')) {
+                    let cand = lineas[i+1];
+                    if (cand && cand.includes('@')) email = cand;
+                } else if (!email && (linea.startsWith('mail:') || linea.startsWith('email:'))) {
+                    let partes = lineaOriginal.split(':');
+                    if (partes.length > 1 && partes[1].includes('@')) email = partes[1].trim();
+                }
+
+                // Fecha y Hora
+                if (!fechaIncidente && (linea === 'fecha de incidente' || linea === 'fecha de incidente:' || linea === 'fecha de siniestro' || linea === 'fecha de siniestro:' || linea === 'fecha y hora de ocurrencia' || linea === 'fecha y hora de ocurrencia:')) {
+                    if (i + 1 < lineas.length) {
+                        fechaIncidente = lineas[i+1];
+                    }
+                } else if (!fechaIncidente && (linea.startsWith('fecha de incidente:') || linea.startsWith('fecha de siniestro:') || linea.startsWith('fecha y hora de ocurrencia:'))) {
+                    fechaIncidente = lineaOriginal.substring(lineaOriginal.indexOf(':') + 1).trim();
+                }
+            }
+
+            // Asignar los valores extraídos a los inputs
+            if (email) document.getElementById('email-asegurado').value = email;
+            if (fechaIncidente) document.getElementById('fecha-incidente').value = fechaIncidente;
+            if (asegurado) document.getElementById('nombre-asegurado').value = asegurado;
+
+            // Mantener Póliza y Patente vacías a propósito (como fue solicitado)
+            document.getElementById('n-poliza').value = '';
+            document.getElementById('patente-vehiculo').value = '';
+
+            // 4. TIPO DE SINIESTRO
+            const tipos = Object.keys(tarifas);
+            for(let tipo of tipos) {
+                if(bodyText.toLowerCase().includes(tipo.toLowerCase())) {
+                    const select = document.getElementById('tipo-siniestro');
+                    select.value = tipo;
+                    select.dispatchEvent(new Event('change'));
+                    break;
+                }
+            }
+
+            const msg = document.getElementById('msg-magico');
+            msg.classList.remove('hidden');
+            setTimeout(() => msg.classList.add('hidden'), 3000);
+        }
+
+        document.getElementById('form-siniestro').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const idEdit = document.getElementById('siniestro-id').value;
+            const idAsignacion = document.getElementById('id-asignacion').value.trim();
+            const nSiniestro = document.getElementById('n-siniestro').value.trim();
+            const asegurado = document.getElementById('nombre-asegurado').value.trim();
+            
+            // Nuevos datos
+            const poliza = document.getElementById('n-poliza').value.trim();
+            const patente = document.getElementById('patente-vehiculo').value.trim().toUpperCase();
+            const email = document.getElementById('email-asegurado').value.trim();
+            const fechaIncidente = document.getElementById('fecha-incidente').value.trim();
+            
+            const tipo = document.getElementById('tipo-siniestro').value;
+            const fechaAsig = document.getElementById('fecha-asignacion').value;
+            
+            const dias = tarifas[tipo].diasLimite;
+            let fechaLim = new Date(fechaAsig);
+            fechaLim.setDate(fechaLim.getDate() + dias);
+
+            if (idEdit) {
+                // Actualizar registro
+                const index = siniestros.findIndex(s => s.id === idEdit);
+                if (index > -1) {
+                    siniestros[index] = {
+                        ...siniestros[index],
+                        idAsignacion, nSiniestro, poliza, asegurado, patente, email, fechaIncidente, tipo,
+                        fechaAsignacion: fechaAsig,
+                        fechaLimite: fechaLim.toISOString().split('T')[0],
+                        honorario: tarifas[tipo].honorario
+                    };
+                }
+            } else {
+                // Nuevo registro
+                siniestros.push({
+                    id: Date.now().toString(),
+                    idAsignacion, nSiniestro, poliza, asegurado, patente, email, fechaIncidente, tipo,
+                    fechaAsignacion: fechaAsig,
+                    fechaLimite: fechaLim.toISOString().split('T')[0],
+                    estado: 'Asignado', honorario: tarifas[tipo].honorario
+                });
+            }
+
+            localStorage.setItem('siniestros_lacaja_v3', JSON.stringify(siniestros));
+            toggleModal('modal-nuevo');
+            renderSiniestros();
+        });
+
+        // --- 3. MODALES Y CONFIGURACIÓN ---
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            modal.classList.toggle('hidden');
+            if(id === 'modal-config' && !modal.classList.contains('hidden')) {
+                renderTablaTipos();
+                renderTablaLinks();
+                document.getElementById('plantilla-texto').value = plantillaMail;
+            }
+        }
+
+        document.getElementById('tipo-siniestro').addEventListener('change', (e) => {
+            const tipo = e.target.value;
+            const infoEl = document.getElementById('info-tarifa');
+            if(tipo && tarifas[tipo]) {
+                infoEl.textContent = `Plazo: ${tarifas[tipo].diasLimite} días | Cobro: $${tarifas[tipo].honorario.toLocaleString('es-AR')}`;
+                infoEl.classList.remove('hidden');
+            } else {
+                infoEl.classList.add('hidden');
+            }
+        });
+
+        function actualizarSelectTipos() {
+            const select = document.getElementById('tipo-siniestro');
+            const actual = select.value;
+            select.innerHTML = '<option value="">Seleccionar...</option>';
+            Object.keys(tarifas).sort().forEach(t => select.innerHTML += `<option value="${t}">${t}</option>`);
+            if(tarifas[actual]) select.value = actual;
+        }
+
+        function guardarPlantilla() {
+            localStorage.setItem('plantilla_mail_lacaja_v3', document.getElementById('plantilla-texto').value);
+            plantillaMail = document.getElementById('plantilla-texto').value;
+            alert("Plantilla guardada");
+        }
+
+        document.getElementById('form-abm-tipo').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const n = document.getElementById('abm-nombre').value.trim();
+            tarifas[n] = { 
+                diasLimite: parseInt(document.getElementById('abm-dias').value), 
+                honorario: parseFloat(document.getElementById('abm-honorario').value) 
+            };
+            localStorage.setItem('tarifas_lacaja', JSON.stringify(tarifas));
+            renderTablaTipos(); actualizarSelectTipos(); document.getElementById('form-abm-tipo').reset();
+        });
+
+        function renderTablaTipos() {
+            document.getElementById('tabla-tipos-body').innerHTML = Object.keys(tarifas).map(t => `
+                <tr class="border-b"><td class="p-2">${t}</td><td class="p-2 text-center">${tarifas[t].diasLimite}</td><td class="p-2 text-right">$${tarifas[t].honorario}</td>
+                <td class="p-2 text-center"><button onclick="delete tarifas['${t}']; localStorage.setItem('tarifas_lacaja', JSON.stringify(tarifas)); renderTablaTipos(); actualizarSelectTipos();" class="text-red-500"><i class="fas fa-trash"></i></button></td></tr>
+            `).join('');
+        }
+
+        document.getElementById('form-abm-link').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const n = document.getElementById('abm-link-nombre').value, u = document.getElementById('abm-link-url').value;
+            linksUtiles.push({id: Date.now().toString(), nombre: n, url: u});
+            localStorage.setItem('links_lacaja', JSON.stringify(linksUtiles));
+            renderTablaLinks(); renderLinksUI(); document.getElementById('form-abm-link').reset();
+        });
+
+        function renderTablaLinks() {
+            document.getElementById('tabla-links-body').innerHTML = linksUtiles.map(l => `
+                <tr class="border-b"><td class="p-2">${l.nombre}</td><td class="p-2 truncate max-w-[150px]"><a href="${l.url}" target="_blank" class="text-blue-500 hover:underline">${l.url}</a></td>
+                <td class="p-2 text-center"><button onclick="linksUtiles = linksUtiles.filter(x=>x.id!=='${l.id}'); localStorage.setItem('links_lacaja', JSON.stringify(linksUtiles)); renderTablaLinks(); renderLinksUI();" class="text-red-500"><i class="fas fa-trash"></i></button></td></tr>
+            `).join('');
+        }
+
+        function renderLinksUI() {
+            document.getElementById('lista-links-ui').innerHTML = linksUtiles.map(l => `<li><a href="${l.url}" target="_blank" class="text-blue-600 hover:underline flex items-center"><i class="fas fa-chevron-right text-xs mr-2"></i> ${l.nombre}</a></li>`).join('');
+        }
+
+        // --- FUNCIONES DE RESPALDO (EXPORTAR/IMPORTAR) ---
+        function exportarDatos() {
+            const data = {
+                siniestros: siniestros,
+                tarifas: tarifas,
+                links: linksUtiles,
+                plantilla: plantillaMail
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const fecha = new Date().toISOString().split('T')[0];
+            a.download = `Respaldo_Siniestros_LaCaja_${fecha}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importarDatos(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if(data.siniestros) localStorage.setItem('siniestros_lacaja_v3', JSON.stringify(data.siniestros));
+                    if(data.tarifas) localStorage.setItem('tarifas_lacaja', JSON.stringify(data.tarifas));
+                    if(data.links) localStorage.setItem('links_lacaja', JSON.stringify(data.links));
+                    if(data.plantilla) localStorage.setItem('plantilla_mail_lacaja_v3', data.plantilla);
+                    
+                    alert("¡Datos restaurados con éxito! La página se va a recargar para aplicar los cambios.");
+                    location.reload(); 
+                } catch(error) {
+                    alert("Error al leer el archivo. Asegurate de que sea un respaldo .json válido generado por esta app.");
+                }
+            };
+            reader.readAsText(file);
+            input.value = ''; 
+        }
+
+        // --- 4. LISTADO PRINCIPAL ---
+        function cambiarEstado(id, est) {
+            siniestros.find(s=>s.id===id).estado = est;
+            localStorage.setItem('siniestros_lacaja_v3', JSON.stringify(siniestros));
+            renderSiniestros();
+        }
+
+        function eliminarSiniestro(id) {
+            if(confirm('¿Eliminar?')) { siniestros = siniestros.filter(s=>s.id!==id); localStorage.setItem('siniestros_lacaja_v3', JSON.stringify(siniestros)); renderSiniestros(); }
+        }
+
+        function enviarMailContacto(idSiniestro) {
+            const s = siniestros.find(x => x.id === idSiniestro);
+            if (!s) return;
+            
+            // Formateo de fecha de AAAA-MM-DD HH:MM:SS a DD/MM/AAAA HH:MM
+            let fechaFmt = s.fechaIncidente || '[fecha y hora]';
+            if (fechaFmt.match(/^\d{4}-\d{2}-\d{2}/)) {
+                let p = fechaFmt.split(/[- :]/);
+                if (p.length >= 5) fechaFmt = `${p[2]}/${p[1]}/${p[0]} ${p[3]}:${p[4]}`;
+            }
+
+            const mailSubject = encodeURIComponent(`SINIESTRO N° ${s.nSiniestro}`);
+            const mailBody = encodeURIComponent(plantillaMail
+                .replace(/\[N_SINIESTRO\]/g, s.nSiniestro)
+                .replace(/\[ASEGURADO\]/g, s.asegurado || '')
+                .replace(/\[FECHA_INCIDENTE\]/g, fechaFmt)
+            );
+            
+            // Si el asegurado tiene email guardado, se lo enviamos directamente
+            const destino = s.email ? encodeURIComponent(s.email) : '';
+            window.open(`mailto:${destino}?subject=${mailSubject}&body=${mailBody}`, '_blank');
+        }
+
+        function renderSiniestros() {
+            const filtroE = document.getElementById('filtro-estado').value, buscar = document.getElementById('buscador-siniestros').value.toLowerCase();
+            let totalFacturar = 0, totalATerminar = 0, html = '';
+            
+            let filtrados = siniestros.filter(s => (filtroE === 'Todos' || s.estado === filtroE) && 
+                ((s.idAsignacion||'').toLowerCase().includes(buscar) || (s.nSiniestro||'').toLowerCase().includes(buscar) || (s.asegurado||'').toLowerCase().includes(buscar) || (s.patente||'').toLowerCase().includes(buscar) || (s.poliza||'').toLowerCase().includes(buscar)));
+            
+            document.getElementById('empty-state').classList.toggle('hidden', filtrados.length > 0);
+            filtrados.sort((a,b) => new Date(a.fechaLimite) - new Date(b.fechaLimite));
+
+            filtrados.forEach(s => {
+                let d = Math.ceil((new Date(s.fechaLimite+'T00:00:00').getTime() - new Date().setHours(0,0,0,0)) / 86400000);
+                let c = '', b = '';
+                
+                if(s.estado === 'Enviado') {
+                    totalFacturar += s.honorario;
+                    c = 'bg-gray-50 opacity-75'; 
+                    b = '<span class="text-xs bg-gray-200 px-2 rounded-full">Finalizado</span>';
+                } else {
+                    totalATerminar += s.honorario;
+                    if(d<0) { c='bg-red-100'; b=`<span class="text-xs text-red-700 font-bold bg-red-200 px-2 rounded-full">Vencido</span>`; }
+                    else if(d<=2) { c='urgente'; b=`<span class="text-xs text-red-700 font-bold bg-red-200 px-2 rounded-full">¡Faltan ${d} d!</span>`; }
+                    else { b=`<span class="text-xs text-green-700 bg-green-100 px-2 rounded-full">${d} d restantes</span>`; }
+                }
+
+                let badgePatente = s.patente ? `<span class="text-[10px] font-mono uppercase bg-white border border-gray-300 px-1 rounded inline-block mt-1">${s.patente}</span>` : '';
+                let infoPoliza = s.poliza ? `<div class="text-[10px] text-gray-500 mt-1"><i class="fas fa-file-contract"></i> Póliza: ${s.poliza}</div>` : '';
+                let infoEmail = s.email ? `<div class="text-[10px] text-blue-500 mt-1 truncate max-w-[150px]"><i class="fas fa-at"></i> ${s.email}</div>` : '';
+                let infoFechaInc = s.fechaIncidente ? `<div class="text-[10px] text-gray-500"><i class="fas fa-calendar-alt"></i> Incidente: ${s.fechaIncidente}</div>` : '';
+
+                html += `<tr class="border-b ${c}">
+                    <td class="px-4 py-3 align-top"><div class="text-xs text-blue-600 font-bold">ID: ${s.idAsignacion||'-'}</div><div class="font-bold text-sm">${s.nSiniestro}</div><div class="text-xs text-gray-500">${s.tipo}</div>${infoPoliza}</td>
+                    <td class="px-4 py-3 align-top"><div class="font-bold text-sm">${s.asegurado||'-'}</div>${badgePatente} ${infoEmail}</td>
+                    <td class="px-4 py-3 align-top"><div class="text-xs text-gray-600">Asig: ${new Date(s.fechaAsignacion+'T00:00:00').toLocaleDateString('es-AR')}</div>${infoFechaInc}<div class="text-sm font-semibold mb-1 mt-1">Lim: ${new Date(s.fechaLimite+'T00:00:00').toLocaleDateString('es-AR')}</div>${b}</td>
+                    <td class="px-4 py-3 align-top">
+                        <select onchange="cambiarEstado('${s.id}', this.value)" class="text-sm border rounded p-1 bg-white shadow-sm">
+                            <option ${s.estado==='Asignado'?'selected':''}>Asignado</option>
+                            <option ${s.estado==='Primer Contacto'?'selected':''}>Primer Contacto</option>
+                            <option ${s.estado==='En analisis'?'selected':''}>En analisis</option>
+                            <option ${s.estado==='Enviado'?'selected':''}>Enviado</option>
+                        </select>
+                    </td>
+                    <td class="px-4 py-3 text-right font-bold text-green-700 align-top">$${s.honorario.toLocaleString('es-AR')}</td>
+                    <td class="px-4 py-3 text-center align-top">
+                        <button onclick="enviarMailContacto('${s.id}')" class="text-blue-600 hover:text-blue-800 mr-2" title="Contactar"><i class="fas fa-envelope"></i></button>
+                        <button onclick="editarSiniestro('${s.id}')" class="text-yellow-600 hover:text-yellow-800 mr-2" title="Editar"><i class="fas fa-edit"></i></button>
+                        <button onclick="eliminarSiniestro('${s.id}')" class="text-red-500" title="Eliminar"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            });
+            document.getElementById('tabla-body').innerHTML = html;
+            document.getElementById('total-cobrar').textContent = `$ ${totalFacturar.toLocaleString('es-AR')}`;
+            document.getElementById('total-a-terminar').textContent = `$ ${totalATerminar.toLocaleString('es-AR')}`;
+        }
+
+        actualizarSelectTipos(); renderLinksUI(); renderSiniestros();
+    </script>
+</body>
 </html>
