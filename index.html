@@ -3,649 +3,955 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Seguimiento de Siniestros</title>
+  <title>Seguimiento de Siniestros — Estudio Alonso</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body { font-family: 'Inter', system-ui, sans-serif; }
-    .badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em; }
-    .fade-in { animation: fadeIn 0.18s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 1rem; }
-    .modal-box { background: white; border-radius: 0.75rem; box-shadow: 0 20px 60px rgba(0,0,0,0.25); width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; }
-    .modal-box-wide { max-width: 640px; }
-    input, select, textarea { outline: none; transition: border-color 0.15s; }
-    input:focus, select:focus, textarea:focus { border-color: #6366f1 !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
-    tr.hover-row:hover { background: #f8fafc; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    /* ── Live dot ── */
+    @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .live-dot { animation: pulse-dot 1.4s infinite; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999;
+      background: #1e293b; color: #fff;
+      padding: .6rem 1.2rem; border-radius: .5rem; font-size: .88rem; font-weight:600;
+      opacity: 0; transform: translateY(.5rem);
+      transition: opacity .2s ease, transform .2s ease;
+      pointer-events: none;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Modals ── */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(15,23,42,.5);
+      z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      padding: 1rem;
+      overflow-y: auto;
+    }
+    .modal-box {
+      background: #fff; border-radius: .75rem;
+      width: 100%; max-width: 560px;
+      max-height: 90vh; overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+      position: relative;
+    }
+    .modal-box-lg { max-width: 720px; }
+
+    /* ── Vista chips ── */
+    .chip-vista {
+      cursor: pointer; user-select: none;
+      padding: .3rem .9rem; border-radius: 9999px; font-size: .82rem; font-weight: 600;
+      border: 2px solid transparent; transition: all .15s;
+      white-space: nowrap;
+    }
+    .chip-vista.active  { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .chip-vista:not(.active) { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+    .chip-vista:not(.active):hover { background: #e2e8f0; }
+
+    /* ── Form controls ── */
+    .field { width: 100%; border: 1px solid #cbd5e1; border-radius: .4rem;
+             padding: .45rem .7rem; font-size: .9rem; outline: none;
+             transition: border-color .15s, box-shadow .15s; background: #fff; }
+    .field:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
+    textarea.field { resize: vertical; }
+    label.lbl { font-size: .78rem; font-weight: 700; color: #475569; display: block; margin-bottom: .3rem; }
+
+    /* ── Buttons ── */
+    .btn { display: inline-flex; align-items: center; gap: .3rem;
+           padding: .42rem 1rem; border-radius: .4rem; font-size: .85rem; font-weight: 600;
+           cursor: pointer; border: none; transition: background .15s; white-space: nowrap; }
+    .btn-primary   { background: #2563eb; color: #fff; }
+    .btn-primary:hover   { background: #1d4ed8; }
+    .btn-secondary { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .btn-danger    { background: #fee2e2; color: #991b1b; }
+    .btn-danger:hover    { background: #fecaca; }
+    .btn-green     { background: #dcfce7; color: #166534; }
+    .btn-green:hover     { background: #bbf7d0; }
+    .btn-amber     { background: #fef3c7; color: #92400e; }
+    .btn-amber:hover     { background: #fde68a; }
+    .btn-sm { padding: .25rem .6rem; font-size: .78rem; }
+
+    /* ── Badge ── */
+    .badge { display: inline-block; padding: .2rem .65rem; border-radius: 9999px;
+             font-size: .75rem; font-weight: 700; white-space: nowrap; }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: #f8fafc; color: #64748b; font-size: .73rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .05em;
+      padding: .65rem 1rem; text-align: left; border-bottom: 1px solid #e2e8f0;
+    }
+    tbody td { padding: .65rem 1rem; border-bottom: 1px solid #f1f5f9; font-size: .85rem; color: #1e293b; }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: #f8fafc; }
+
+    /* ── Config section title ── */
+    .section-title {
+      font-size: .95rem; font-weight: 700; color: #1e293b;
+      margin-bottom: .75rem; padding-bottom: .45rem;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen">
 
-<!-- HEADER -->
-<header class="bg-slate-800 text-white shadow-lg">
-  <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between flex-wrap gap-2">
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay"
+  class="fixed inset-0 bg-white flex flex-col items-center justify-center z-[2000] gap-4">
+  <svg class="animate-spin h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+  </svg>
+  <p class="text-slate-500 text-sm font-medium">Conectando con Firestore…</p>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════ -->
+<header class="bg-slate-800 text-white shadow-lg sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
     <div>
-      <h1 class="text-xl font-bold tracking-tight">Seguimiento de Siniestros</h1>
-      <p class="text-slate-400 text-sm mt-0.5">Estudio Alonso &mdash; Verificadores La Caja Seguros</p>
+      <h1 class="text-lg sm:text-xl font-bold tracking-tight leading-tight">Seguimiento de Siniestros</h1>
+      <p class="text-slate-400 text-xs mt-0.5">Estudio Alonso — Verificadores La Caja</p>
     </div>
-    <div class="flex items-center gap-2 text-sm">
-      <span class="relative flex h-2.5 w-2.5">
-        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-        <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-      </span>
-      <span class="text-emerald-400 font-semibold">&#9889; En vivo</span>
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1.5 text-xs text-slate-300 select-none">
+        <span class="live-dot w-2 h-2 rounded-full bg-green-400 inline-block flex-shrink-0"></span>
+        <span class="hidden sm:inline font-semibold">⚡ En vivo</span>
+      </div>
+      <button id="btn-config" title="Configuración"
+        class="p-2 rounded-lg hover:bg-slate-700 transition-colors text-xl leading-none">⚙️</button>
     </div>
   </div>
 </header>
 
-<!-- STATS BAR -->
-<div class="max-w-7xl mx-auto px-4 mt-5">
-  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-      <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Total casos</p>
-      <p id="stat-total" class="text-2xl font-bold text-slate-800 mt-1">—</p>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-      <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Pendientes</p>
-      <p id="stat-pendientes" class="text-2xl font-bold text-slate-800 mt-1">—</p>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-      <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">Enviados este mes</p>
-      <p id="stat-enviados" class="text-2xl font-bold text-slate-800 mt-1">—</p>
-    </div>
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-      <p class="text-xs text-slate-500 font-medium uppercase tracking-wide">A cobrar este mes</p>
-      <p id="stat-cobrar" class="text-2xl font-bold text-emerald-600 mt-1">—</p>
+<!-- ══════════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════════ -->
+<main class="max-w-7xl mx-auto px-4 py-5 space-y-4">
+
+  <!-- STATS BAR -->
+  <div id="stats-bar" class="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <!-- rendered by JS -->
+  </div>
+
+  <!-- VISTAS + BÚSQUEDA -->
+  <div class="bg-white rounded-xl shadow-sm border border-slate-200 px-4 py-3">
+    <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+      <div id="vistas-chips" class="flex flex-wrap gap-2"></div>
+      <div class="relative w-full sm:w-72 flex-shrink-0">
+        <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+          fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8" stroke-width="2"/>
+          <path stroke-linecap="round" stroke-width="2" d="m21 21-4.35-4.35"/>
+        </svg>
+        <input id="search-input" type="text" placeholder="Buscar nombre, ID, siniestro…"
+          class="field pl-8 text-sm" />
+      </div>
     </div>
   </div>
-</div>
 
-<!-- FILTROS -->
-<div class="max-w-7xl mx-auto px-4 mt-5">
-  <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center flex-wrap">
-    <div class="relative flex-1 min-w-[200px]">
-      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input id="search-input" type="text" placeholder="Buscar por nombre, ID, siniestro, patente..."
-        class="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400" />
-    </div>
-    <div id="filter-chips" class="flex flex-wrap gap-2"></div>
-  </div>
-</div>
-
-<!-- TABLA -->
-<div class="max-w-7xl mx-auto px-4 mt-4 mb-10">
+  <!-- TABLA -->
   <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
     <div class="overflow-x-auto">
-      <table class="w-full text-sm">
+      <table id="tabla-casos">
         <thead>
-          <tr class="bg-slate-50 border-b border-slate-200">
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Fecha Asig.</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">ID</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Siniestro</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Nombre</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Estado</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Resultado</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Acciones</th>
+          <tr>
+            <th>Fecha Asig.</th>
+            <th>ID</th>
+            <th>Siniestro</th>
+            <th>Nombre</th>
+            <th>Estado</th>
+            <th>Resultado</th>
+            <th class="text-right pr-4">Acciones</th>
           </tr>
         </thead>
-        <tbody id="table-body">
-          <tr><td colspan="7" class="text-center py-12 text-slate-400">Cargando casos...</td></tr>
-        </tbody>
+        <tbody id="tabla-body"></tbody>
       </table>
     </div>
-    <div id="table-empty" class="hidden text-center py-16 text-slate-400">
-      <svg class="w-10 h-10 mx-auto mb-3 text-slate-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      <p class="font-medium">No se encontraron casos</p>
-      <p class="text-xs mt-1">Probá con otro filtro o término de búsqueda</p>
+    <div id="tabla-empty" class="hidden text-center py-16 text-slate-400">
+      <svg class="mx-auto mb-3 w-12 h-12 text-slate-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M3 7h18M3 12h18M3 17h18"/>
+      </svg>
+      <p class="font-semibold text-slate-500">Sin casos en esta vista</p>
     </div>
   </div>
-</div>
 
-<!-- MODAL DETALLE -->
-<div id="modal-detalle" class="modal-overlay hidden">
-  <div class="modal-box modal-box-wide fade-in">
-    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+</main>
+
+<!-- ══════════════════════════════════════════════
+     MODAL DETALLE
+══════════════════════════════════════════════ -->
+<div id="modal-detalle" class="modal-backdrop hidden">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white z-10 rounded-t-xl">
       <div>
-        <h2 class="text-base font-bold text-slate-800">Detalle del caso</h2>
-        <p id="modal-subtitle" class="text-xs text-slate-500 mt-0.5"></p>
+        <h2 class="font-bold text-slate-800 text-base" id="det-title">Detalle del caso</h2>
+        <p class="text-xs text-slate-400 mt-0.5" id="det-subtitle"></p>
       </div>
-      <button onclick="closeModal('modal-detalle')" class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>
+      <button class="text-slate-400 hover:text-slate-700 text-2xl leading-none px-1" id="det-close">&times;</button>
     </div>
-    <div class="p-6 space-y-4">
-      <input type="hidden" id="modal-doc-id" />
+    <!-- Body -->
+    <div class="p-5 space-y-4">
 
-      <!-- Editable fields -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <!-- Estado -->
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1.5">Estado</label>
-          <select id="modal-estado" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white">
-            <option value="asignado">Asignado</option>
-            <option value="primer_contacto">Primer contacto</option>
-            <option value="solicitando_info">Solicitando info</option>
-            <option value="en_analisis">En análisis</option>
-            <option value="enviado">Enviado</option>
-            <option value="cobrado">Cobrado</option>
-          </select>
+          <label class="lbl">Estado</label>
+          <select id="det-estado" class="field"></select>
         </div>
+        <!-- Resultado -->
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1.5">Resultado</label>
-          <select id="modal-resultado" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white">
-            <option value="">— Sin resultado —</option>
-            <option value="SF">SF</option>
-            <option value="TF">TF</option>
-            <option value="TF 3ro">TF 3ro</option>
-            <option value="mail susp plazos">mail susp plazos</option>
-            <option value="Otro">Otro</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1.5">Honorarios ($)</label>
-          <input id="modal-honorarios" type="number" min="0" step="0.01"
-            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800" placeholder="0" />
-        </div>
-        <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1.5">Fecha envío</label>
-          <input id="modal-fecha-envio" type="date"
-            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800" />
+          <label class="lbl">Resultado</label>
+          <select id="det-resultado" class="field"></select>
         </div>
       </div>
 
+      <!-- Honorarios -->
       <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Observaciones</label>
-        <textarea id="modal-observaciones" rows="3"
-          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 resize-none"
-          placeholder="Notas internas del caso..."></textarea>
+        <label class="lbl">Honorarios ($)</label>
+        <input type="number" id="det-honorarios" min="0" step="1" class="field" placeholder="0" />
       </div>
 
-      <!-- Panel readonly -->
-      <div class="bg-slate-50 rounded-xl border border-slate-200 p-4">
-        <p class="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Información del caso</p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          <div>
-            <span class="text-xs text-slate-400 font-medium">Póliza</span>
-            <p id="ro-poliza" class="text-slate-700 font-mono text-xs mt-0.5">—</p>
-          </div>
-          <div>
-            <span class="text-xs text-slate-400 font-medium">Mail</span>
-            <p id="ro-mail" class="text-slate-700 text-xs mt-0.5 truncate">—</p>
-          </div>
-          <div>
-            <span class="text-xs text-slate-400 font-medium">DNI</span>
-            <p id="ro-dni" class="text-slate-700 text-xs mt-0.5">—</p>
-          </div>
-          <div>
-            <span class="text-xs text-slate-400 font-medium">Domicilio</span>
-            <p id="ro-domicilio" class="text-slate-700 text-xs mt-0.5">—</p>
-          </div>
-          <div>
-            <span class="text-xs text-slate-400 font-medium">Vehículo</span>
-            <p id="ro-vehiculo" class="text-slate-700 text-xs mt-0.5">—</p>
-          </div>
-          <div>
-            <span class="text-xs text-slate-400 font-medium">Fecha ocurrencia</span>
-            <p id="ro-fecha-ocurrencia" class="text-slate-700 text-xs mt-0.5">—</p>
-          </div>
-        </div>
+      <!-- Observaciones -->
+      <div>
+        <label class="lbl">Observaciones</label>
+        <textarea id="det-observaciones" rows="3" class="field" placeholder="Sin observaciones…"></textarea>
       </div>
 
-      <!-- Actions -->
-      <div class="flex justify-end gap-3 pt-2">
-        <button onclick="closeModal('modal-detalle')"
-          class="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors font-medium">
-          Cancelar
-        </button>
-        <button id="btn-guardar" onclick="guardarCambios()"
-          class="px-5 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium flex items-center gap-2">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-          Guardar
-        </button>
+      <!-- Info readonly -->
+      <div class="bg-slate-50 border border-slate-200 rounded-lg p-4">
+        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Información del caso</p>
+        <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          <div><dt class="text-xs text-slate-400">Póliza</dt><dd id="ro-poliza" class="font-medium text-slate-700 font-mono text-xs mt-0.5">—</dd></div>
+          <div><dt class="text-xs text-slate-400">DNI</dt><dd id="ro-dni" class="font-medium text-slate-700 text-xs mt-0.5">—</dd></div>
+          <div class="sm:col-span-2"><dt class="text-xs text-slate-400">Mail</dt><dd id="ro-mail" class="font-medium text-slate-700 text-xs mt-0.5 break-all">—</dd></div>
+          <div class="sm:col-span-2"><dt class="text-xs text-slate-400">Domicilio</dt><dd id="ro-domicilio" class="font-medium text-slate-700 text-xs mt-0.5">—</dd></div>
+          <div><dt class="text-xs text-slate-400">Vehículo</dt><dd id="ro-vehiculo" class="font-medium text-slate-700 text-xs mt-0.5">—</dd></div>
+          <div><dt class="text-xs text-slate-400">Patente</dt><dd id="ro-patente" class="font-medium text-slate-700 text-xs mt-0.5 font-mono">—</dd></div>
+          <div><dt class="text-xs text-slate-400">Fecha ocurrencia</dt><dd id="ro-fecha-ocurr" class="font-medium text-slate-700 text-xs mt-0.5">—</dd></div>
+          <div><dt class="text-xs text-slate-400">Hora</dt><dd id="ro-hora-ocurr" class="font-medium text-slate-700 text-xs mt-0.5">—</dd></div>
+        </dl>
+      </div>
+
+      <!-- Acciones -->
+      <div class="flex justify-end gap-2 pt-1">
+        <button class="btn btn-secondary" id="det-cancel">Cancelar</button>
+        <button class="btn btn-primary" id="det-save">Guardar</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- MODAL WHATSAPP -->
-<div id="modal-whatsapp" class="modal-overlay hidden">
-  <div class="modal-box fade-in">
-    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-      <div class="flex items-center gap-2">
-        <svg class="w-5 h-5 text-emerald-500" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-        <h2 class="text-base font-bold text-slate-800">Mensaje WhatsApp</h2>
-      </div>
-      <button onclick="closeModal('modal-whatsapp')" class="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-lg hover:bg-slate-100">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>
+<!-- ══════════════════════════════════════════════
+     MODAL WHATSAPP
+══════════════════════════════════════════════ -->
+<div id="modal-wapp" class="modal-backdrop hidden">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+      <h2 class="font-bold text-slate-800 text-base">💬 Mensaje WhatsApp</h2>
+      <button class="text-slate-400 hover:text-slate-700 text-2xl leading-none px-1" id="wapp-close">&times;</button>
     </div>
-    <div class="p-6 space-y-4">
+    <div class="p-5 space-y-4">
       <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-2">Tratamiento</label>
-        <div class="flex gap-4">
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="tratamiento" value="Sr." class="accent-indigo-600" />
-            <span class="text-sm text-slate-700">Sr.</span>
+        <label class="lbl">Tratamiento</label>
+        <div class="flex gap-5 mt-1">
+          <label class="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-700">
+            <input type="radio" name="wapp-genero" value="Sr." id="wapp-sr" class="accent-blue-600" />
+            Sr.
           </label>
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input type="radio" name="tratamiento" value="Sra." class="accent-indigo-600" />
-            <span class="text-sm text-slate-700">Sra.</span>
+          <label class="flex items-center gap-2 cursor-pointer text-sm font-medium text-slate-700">
+            <input type="radio" name="wapp-genero" value="Sra." id="wapp-sra" class="accent-blue-600" />
+            Sra.
           </label>
         </div>
       </div>
       <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1.5">Mensaje generado</label>
-        <textarea id="wapp-mensaje" rows="5" readonly
-          class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm text-slate-700 bg-slate-50 resize-none select-all cursor-text"
-          placeholder="Seleccioná un tratamiento para generar el mensaje..."></textarea>
+        <label class="lbl">Mensaje generado</label>
+        <textarea id="wapp-msg" rows="5" readonly
+          class="field bg-slate-50 text-slate-700 text-sm cursor-text select-all mt-1"></textarea>
       </div>
-      <div class="flex items-center justify-between">
-        <p class="text-xs text-slate-400">Copiá el mensaje y pegalo en WhatsApp</p>
-        <button id="btn-copiar" onclick="copiarMensaje()"
-          class="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors text-sm font-medium">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-          Copiar
-        </button>
+      <div class="flex justify-end gap-2">
+        <button class="btn btn-secondary" id="wapp-cancel">Cerrar</button>
+        <button class="btn btn-primary" id="wapp-copy">📋 Copiar</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- TOAST -->
-<div id="toast" class="fixed bottom-6 right-6 z-[100] hidden">
-  <div id="toast-inner" class="flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white min-w-[220px] max-w-xs fade-in">
-    <span id="toast-icon"></span>
-    <span id="toast-msg"></span>
+<!-- ══════════════════════════════════════════════
+     MODAL CONFIGURACIÓN
+══════════════════════════════════════════════ -->
+<div id="modal-config" class="modal-backdrop hidden">
+  <div class="modal-box modal-box-lg" onclick="event.stopPropagation()">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 sticky top-0 bg-white z-10 rounded-t-xl">
+      <h2 class="font-bold text-slate-800 text-base">⚙️ Configuración</h2>
+      <button class="text-slate-400 hover:text-slate-700 text-2xl leading-none px-1" id="cfg-close">&times;</button>
+    </div>
+    <div class="p-5 space-y-8">
+
+      <!-- A) RESULTADOS -->
+      <section>
+        <p class="section-title">A) Resultados</p>
+        <div id="cfg-resultados-list" class="flex flex-wrap gap-2 min-h-[2rem] mb-3"></div>
+        <div class="flex gap-2">
+          <input type="text" id="cfg-nuevo-resultado" placeholder="Nuevo resultado…" class="field flex-1 text-sm" />
+          <button class="btn btn-secondary" id="cfg-add-resultado">Agregar</button>
+        </div>
+        <div class="flex justify-end mt-3">
+          <button class="btn btn-primary" id="cfg-save-resultados">Guardar resultados</button>
+        </div>
+      </section>
+
+      <!-- B) VISTAS -->
+      <section>
+        <p class="section-title">B) Vistas</p>
+        <div id="cfg-vistas-list" class="space-y-3 mb-3"></div>
+        <button class="btn btn-secondary" id="cfg-add-vista">+ Agregar vista</button>
+        <div class="flex justify-end mt-3">
+          <button class="btn btn-primary" id="cfg-save-vistas">Guardar vistas</button>
+        </div>
+      </section>
+
+      <!-- C) HONORARIO DEFAULT -->
+      <section>
+        <p class="section-title">C) Honorario por defecto</p>
+        <div class="flex gap-2 items-end">
+          <div class="flex-1">
+            <label class="lbl">Monto ($)</label>
+            <input type="number" id="cfg-honorario" min="0" step="1" class="field" />
+          </div>
+          <button class="btn btn-primary" id="cfg-save-honorario">Guardar</button>
+        </div>
+      </section>
+
+    </div>
   </div>
 </div>
 
-<!-- FIREBASE -->
+<!-- ══════════════════════════════════════════════
+     FIREBASE + APP
+══════════════════════════════════════════════ -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getFirestore, collection, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, collection, doc,
+  onSnapshot, updateDoc, setDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyDQgFvdHZbDV-0CHRgyOaQBBq9ZBnepqL0",
-    authDomain: "asignaciones-siniestros.firebaseapp.com",
-    projectId: "asignaciones-siniestros",
-    storageBucket: "asignaciones-siniestros.firebasestorage.app",
-    messagingSenderId: "80863224826",
-    appId: "1:80863224826:web:2a6664949a6411c0f17a43"
+/* ─────────────────────────────────────────────────
+   FIREBASE INIT
+───────────────────────────────────────────────── */
+const firebaseConfig = {
+  apiKey: "AIzaSyDQgFvdHZbDV-0CHRgyOaQBBq9ZBnepqL0",
+  authDomain: "asignaciones-siniestros.firebaseapp.com",
+  projectId: "asignaciones-siniestros",
+  storageBucket: "asignaciones-siniestros.firebasestorage.app",
+  messagingSenderId: "80863224826",
+  appId: "1:80863224826:web:2a6664949a6411c0f17a43"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db    = getFirestore(fbApp);
+
+/* ─────────────────────────────────────────────────
+   CONSTANTES
+───────────────────────────────────────────────── */
+const ESTADOS_CONFIG = {
+  asignado:         { label: "Asignado",        cls: "bg-blue-100 text-blue-800"   },
+  primer_contacto:  { label: "1er Contacto",     cls: "bg-purple-100 text-purple-800" },
+  solicitando_info: { label: "Solicitando Info", cls: "bg-orange-100 text-orange-800" },
+  en_analisis:      { label: "En Análisis",      cls: "bg-yellow-100 text-yellow-800" },
+  enviado:          { label: "Enviado",          cls: "bg-green-100 text-green-800"  },
+  cobrado:          { label: "Cobrado",          cls: "bg-slate-100 text-slate-600"  },
+};
+
+const ESTADOS_ACTIVOS  = ["asignado","primer_contacto","solicitando_info","en_analisis"];
+const ESTADOS_WAPP     = ["asignado","primer_contacto","solicitando_info"];
+
+const DEFAULT_CONFIG = {
+  honorario_default: 15000,
+  resultados: ["SF","TF","IC","TF 3ro","Pendiente"],
+  vistas: [
+    { id:"activos",    label:"Activos",    estados:["asignado","primer_contacto","solicitando_info","en_analisis"], default:true },
+    { id:"por_cobrar", label:"Por cobrar", estados:["enviado"] },
+    { id:"cobrados",   label:"Cobrados",   estados:["cobrado"] },
+    { id:"todos",      label:"Todos",      estados:["asignado","primer_contacto","solicitando_info","en_analisis","enviado","cobrado"] }
+  ]
+};
+
+/* ─────────────────────────────────────────────────
+   STATE
+───────────────────────────────────────────────── */
+let casos        = [];
+let config       = structuredClone(DEFAULT_CONFIG);
+let vistaActual  = null;   // vista id string
+let casoDetalle  = null;   // objeto caso en edición
+let wappCaso     = null;   // objeto caso para wapp
+
+// Para config modal (copias de trabajo)
+let cfgResultados = [];
+let cfgVistas     = [];
+
+// Flags de carga inicial
+let loadedCasos  = false;
+let loadedConfig = false;
+
+/* ─────────────────────────────────────────────────
+   HELPERS
+───────────────────────────────────────────────── */
+function todayStr() {
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+function parseFechaDMY(str) {
+  // "DD/MM/YYYY" → timestamp ms
+  if (!str) return 0;
+  const p = str.split('/');
+  if (p.length !== 3) return 0;
+  return new Date(`${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`).getTime() || 0;
+}
+
+function esMesActual(str) {
+  if (!str) return false;
+  const ts = parseFechaDMY(str);
+  if (!ts) return false;
+  const d   = new Date(ts);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+}
+
+/* ── Toast ── */
+let _toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+/* ── Loading overlay ── */
+function checkHideLoading() {
+  if (loadedCasos && loadedConfig) {
+    const ov = document.getElementById('loading-overlay');
+    if (ov) ov.style.display = 'none';
+  }
+}
+
+/* ── Modals ── */
+function openModal(id)  { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+// Backdrop clicks
+['modal-detalle','modal-wapp','modal-config'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    if (e.target.id === id) closeModal(id);
+  });
+});
+
+// Escape key
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  ['modal-detalle','modal-wapp','modal-config'].forEach(id => {
+    if (!document.getElementById(id).classList.contains('hidden')) closeModal(id);
+  });
+});
+
+/* ─────────────────────────────────────────────────
+   FIRESTORE — REAL-TIME LISTENERS
+───────────────────────────────────────────────── */
+
+// casos
+onSnapshot(collection(db, 'casos'), snap => {
+  casos = snap.docs.map(d => ({ _id: d.id, ...d.data() }));
+  renderStats();
+  renderTabla();
+  loadedCasos = true;
+  checkHideLoading();
+}, err => {
+  console.error('casos listener error:', err);
+});
+
+// config/settings
+onSnapshot(doc(db, 'config', 'settings'), async snap => {
+  if (!snap.exists()) {
+    // Crear con defaults
+    await setDoc(doc(db, 'config', 'settings'), DEFAULT_CONFIG);
+    return; // listener se re-dispara
+  }
+  const data = snap.data();
+  config = {
+    honorario_default: data.honorario_default ?? DEFAULT_CONFIG.honorario_default,
+    resultados:        Array.isArray(data.resultados) ? data.resultados : DEFAULT_CONFIG.resultados,
+    vistas:            Array.isArray(data.vistas)     ? data.vistas     : DEFAULT_CONFIG.vistas,
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  // Fijar vista inicial
+  if (!vistaActual) {
+    const def = config.vistas.find(v => v.default) || config.vistas[0];
+    vistaActual = def?.id ?? null;
+  } else {
+    // Si la vista actual fue borrada, volver a default
+    if (!config.vistas.find(v => v.id === vistaActual)) {
+      const def = config.vistas.find(v => v.default) || config.vistas[0];
+      vistaActual = def?.id ?? null;
+    }
+  }
 
-  // ─── State ───────────────────────────────────────────────────────────────────
-  let allCasos = [];
-  let activeFilter = 'todos';
-  let searchTerm = '';
-  let wappCaso = null;
+  renderVistasChips();
+  renderTabla();
+  loadedConfig = true;
+  checkHideLoading();
+}, err => {
+  console.error('config listener error:', err);
+});
 
-  // ─── Config ───────────────────────────────────────────────────────────────────
-  const ESTADOS = [
-    { value: 'todos',            label: 'Todos' },
-    { value: 'asignado',         label: 'Asignado' },
-    { value: 'primer_contacto',  label: 'Primer contacto' },
-    { value: 'solicitando_info', label: 'Solicitando info' },
-    { value: 'en_analisis',      label: 'En análisis' },
-    { value: 'enviado',          label: 'Enviado' },
-    { value: 'cobrado',          label: 'Cobrado' },
+/* ─────────────────────────────────────────────────
+   STATS BAR
+───────────────────────────────────────────────── */
+function renderStats() {
+  const total     = casos.length;
+  const activos   = casos.filter(c => ESTADOS_ACTIVOS.includes(c.estado)).length;
+  const porCobrar = casos.filter(c => c.estado === 'enviado').length;
+
+  const cobradoMes = casos
+    .filter(c => c.estado === 'cobrado' && esMesActual(c.fecha_cobro))
+    .reduce((sum, c) => sum + (Number(c.honorarios) || 0), 0);
+
+  const cards = [
+    { label: 'Total casos',      value: total,       color: 'text-slate-800'   },
+    { label: 'Activos',          value: activos,     color: 'text-blue-600'    },
+    { label: 'Por cobrar',       value: porCobrar,   color: 'text-green-600'   },
+    { label: 'Cobrado este mes', value: `$${cobradoMes.toLocaleString('es-AR')}`, color: 'text-emerald-700' },
   ];
 
-  const ESTADO_CLASES = {
-    asignado:         'bg-blue-100 text-blue-800',
-    primer_contacto:  'bg-purple-100 text-purple-800',
-    solicitando_info: 'bg-orange-100 text-orange-800',
-    en_analisis:      'bg-yellow-100 text-yellow-800',
-    enviado:          'bg-green-100 text-green-800',
-    cobrado:          'bg-slate-100 text-slate-600',
-  };
+  document.getElementById('stats-bar').innerHTML = cards.map(c => `
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+      <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1">${c.label}</p>
+      <p class="text-3xl font-bold ${c.color}">${c.value}</p>
+    </div>
+  `).join('');
+}
 
-  const ESTADO_LABEL = {
-    asignado:         'Asignado',
-    primer_contacto:  'Primer contacto',
-    solicitando_info: 'Solicitando info',
-    en_analisis:      'En análisis',
-    enviado:          'Enviado',
-    cobrado:          'Cobrado',
-  };
+/* ─────────────────────────────────────────────────
+   VISTAS CHIPS
+───────────────────────────────────────────────── */
+function renderVistasChips() {
+  document.getElementById('vistas-chips').innerHTML =
+    (config.vistas || []).map(v => `
+      <button class="chip-vista ${vistaActual === v.id ? 'active' : ''}"
+        data-vista="${v.id}">${v.label}</button>
+    `).join('');
 
-  const ESTADOS_PENDIENTE = ['asignado', 'primer_contacto', 'solicitando_info', 'en_analisis'];
-  const ESTADOS_WAPP      = ['asignado', 'primer_contacto', 'solicitando_info'];
-
-  // ─── Helpers ─────────────────────────────────────────────────────────────────
-  function todayISO() {
-    return new Date().toISOString().slice(0, 10);
-  }
-
-  function esMesActual(fechaStr) {
-    if (!fechaStr) return false;
-    const d = new Date(fechaStr + 'T00:00:00');
-    const hoy = new Date();
-    return d.getFullYear() === hoy.getFullYear() && d.getMonth() === hoy.getMonth();
-  }
-
-  function formatFecha(fechaStr) {
-    if (!fechaStr) return '—';
-    const [y, m, d] = fechaStr.split('-');
-    return `${d}/${m}/${y}`;
-  }
-
-  function formatMoney(n) {
-    if (!n && n !== 0) return '—';
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency', currency: 'ARS', maximumFractionDigits: 0
-    }).format(n);
-  }
-
-  function saludo() {
-    return new Date().getHours() < 13 ? 'Buen día' : 'Buenas tardes';
-  }
-
-  // ─── Chips de filtro ─────────────────────────────────────────────────────────
-  function renderChips() {
-    const container = document.getElementById('filter-chips');
-    container.innerHTML = '';
-    ESTADOS.forEach(e => {
-      const btn = document.createElement('button');
-      const isActive = activeFilter === e.value;
-      btn.textContent = e.label;
-      btn.className = `px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
-        isActive
-          ? 'bg-slate-800 text-white border-slate-800'
-          : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
-      }`;
-      btn.onclick = () => { activeFilter = e.value; renderChips(); renderTable(); };
-      container.appendChild(btn);
-    });
-  }
-
-  // ─── Stats ────────────────────────────────────────────────────────────────────
-  function renderStats() {
-    const total      = allCasos.length;
-    const pendientes = allCasos.filter(c => ESTADOS_PENDIENTE.includes(c.estado)).length;
-    const enviadosMes = allCasos.filter(c =>
-      c.estado === 'enviado' && esMesActual(c.fecha_envio)
-    ).length;
-    const aCobrar = allCasos
-      .filter(c => c.estado === 'enviado' && esMesActual(c.fecha_envio) && !c.fecha_cobro)
-      .reduce((sum, c) => sum + (parseFloat(c.honorarios) || 0), 0);
-
-    document.getElementById('stat-total').textContent     = total;
-    document.getElementById('stat-pendientes').textContent = pendientes;
-    document.getElementById('stat-enviados').textContent   = enviadosMes;
-    document.getElementById('stat-cobrar').textContent     = formatMoney(aCobrar);
-  }
-
-  // ─── Tabla ────────────────────────────────────────────────────────────────────
-  function getFiltered() {
-    return allCasos.filter(c => {
-      const matchEstado = activeFilter === 'todos' || c.estado === activeFilter;
-      if (!matchEstado) return false;
-      if (!searchTerm) return true;
-      const q = searchTerm.toLowerCase();
-      return (
-        (c.id            || '').toLowerCase().includes(q) ||
-        (c.siniestro     || '').toLowerCase().includes(q) ||
-        (c.nombre_completo || '').toLowerCase().includes(q) ||
-        (c.patente       || '').toLowerCase().includes(q) ||
-        (c.marca_modelo  || '').toLowerCase().includes(q) ||
-        (c.poliza        || '').toLowerCase().includes(q)
-      );
-    });
-  }
-
-  function renderTable() {
-    const filtered = getFiltered();
-    const tbody = document.getElementById('table-body');
-    const empty  = document.getElementById('table-empty');
-
-    if (filtered.length === 0) {
-      tbody.innerHTML = '';
-      empty.classList.remove('hidden');
-      return;
-    }
-    empty.classList.add('hidden');
-
-    // Ordenar por fecha_asignacion desc
-    filtered.sort((a, b) => (b.fecha_asignacion || '').localeCompare(a.fecha_asignacion || ''));
-
-    tbody.innerHTML = filtered.map(caso => {
-      const estadoClase = ESTADO_CLASES[caso.estado] || 'bg-slate-100 text-slate-600';
-      const estadoLabel = ESTADO_LABEL[caso.estado]  || caso.estado;
-      const showWapp    = ESTADOS_WAPP.includes(caso.estado);
-      const showCobrado = caso.estado === 'enviado';
-
-      return `
-        <tr class="hover-row border-b border-slate-100 last:border-0">
-          <td class="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">${formatFecha(caso.fecha_asignacion)}</td>
-          <td class="px-4 py-3 font-mono text-slate-700 font-semibold text-xs">${caso.id || '—'}</td>
-          <td class="px-4 py-3 font-mono text-slate-600 text-xs whitespace-nowrap">${caso.siniestro || '—'}</td>
-          <td class="px-4 py-3 text-slate-800 font-medium text-xs">${caso.nombre_completo || '—'}</td>
-          <td class="px-4 py-3">
-            <span class="badge ${estadoClase}">${estadoLabel}</span>
-          </td>
-          <td class="px-4 py-3 text-slate-600 text-xs">${caso.resultado || '—'}</td>
-          <td class="px-4 py-3">
-            <div class="flex items-center gap-1.5 flex-wrap">
-              <button onclick="abrirDetalle('${caso._docId}')"
-                class="px-2.5 py-1 text-xs font-medium bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors">
-                Ver
-              </button>
-              ${showWapp ? `
-              <button onclick="abrirWhatsApp('${caso._docId}')"
-                class="px-2.5 py-1 text-xs font-medium bg-emerald-50 text-emerald-700 rounded-md hover:bg-emerald-100 transition-colors flex items-center gap-1">
-                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                WApp
-              </button>` : ''}
-              ${showCobrado ? `
-              <button onclick="marcarCobrado('${caso._docId}')"
-                class="px-2.5 py-1 text-xs font-medium bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 transition-colors">
-                Cobrado
-              </button>` : ''}
-            </div>
-          </td>
-        </tr>
-      `;
-    }).join('');
-  }
-
-  // ─── Real-time listener ───────────────────────────────────────────────────────
-  const casosRef = collection(db, 'casos');
-  onSnapshot(casosRef, (snapshot) => {
-    allCasos = snapshot.docs.map(d => ({ _docId: d.id, ...d.data() }));
-    renderStats();
-    renderTable();
-  }, (err) => {
-    console.error('Firestore error:', err);
-    showToast('Error al conectar con Firestore', 'error');
-  });
-
-  // ─── Modal Detalle ────────────────────────────────────────────────────────────
-  window.abrirDetalle = function(docId) {
-    const caso = allCasos.find(c => c._docId === docId);
-    if (!caso) return;
-
-    document.getElementById('modal-doc-id').value       = docId;
-    document.getElementById('modal-subtitle').textContent = `ID: ${caso.id || '—'} · ${caso.nombre_completo || ''}`;
-    document.getElementById('modal-estado').value        = caso.estado || 'asignado';
-    document.getElementById('modal-resultado').value     = caso.resultado || '';
-    document.getElementById('modal-honorarios').value    = caso.honorarios || '';
-    document.getElementById('modal-observaciones').value = caso.observaciones || '';
-    document.getElementById('modal-fecha-envio').value   = caso.fecha_envio || '';
-
-    // Readonly fields
-    document.getElementById('ro-poliza').textContent    = caso.poliza || '—';
-    document.getElementById('ro-mail').textContent      = caso.mail || '—';
-    document.getElementById('ro-dni').textContent       = caso.dni || '—';
-    document.getElementById('ro-domicilio').textContent = caso.domicilio || '—';
-    document.getElementById('ro-vehiculo').textContent  =
-      [caso.marca_modelo, caso.patente].filter(Boolean).join(' · ') || '—';
-    document.getElementById('ro-fecha-ocurrencia').textContent =
-      caso.hora_ocurrencia
-        ? `${formatFecha(caso.fecha_ocurrencia)} ${caso.hora_ocurrencia}`
-        : formatFecha(caso.fecha_ocurrencia);
-
-    openModal('modal-detalle');
-  };
-
-  window.guardarCambios = async function() {
-    const docId = document.getElementById('modal-doc-id').value;
-    if (!docId) return;
-
-    const nuevoEstado    = document.getElementById('modal-estado').value;
-    const caso           = allCasos.find(c => c._docId === docId);
-    const estadoAnterior = caso ? caso.estado : null;
-
-    const updates = {
-      estado:        nuevoEstado,
-      resultado:     document.getElementById('modal-resultado').value || null,
-      honorarios:    parseFloat(document.getElementById('modal-honorarios').value) || 0,
-      observaciones: document.getElementById('modal-observaciones').value.trim(),
-      fecha_envio:   document.getElementById('modal-fecha-envio').value || caso?.fecha_envio || null,
-    };
-
-    // Auto-setear fechas según transición de estado
-    if (nuevoEstado === 'enviado' && estadoAnterior !== 'enviado' && !updates.fecha_envio) {
-      updates.fecha_envio = todayISO();
-    }
-    if (nuevoEstado === 'cobrado' && !caso?.fecha_cobro) {
-      updates.fecha_cobro = todayISO();
-    }
-
-    const btn = document.getElementById('btn-guardar');
-    btn.disabled   = true;
-    btn.textContent = 'Guardando...';
-
-    try {
-      await updateDoc(doc(db, 'casos', docId), updates);
-      closeModal('modal-detalle');
-      showToast('Caso actualizado correctamente', 'success');
-    } catch (err) {
-      console.error(err);
-      showToast('Error al guardar los cambios', 'error');
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Guardar`;
-    }
-  };
-
-  // ─── Cobrado rápido ───────────────────────────────────────────────────────────
-  window.marcarCobrado = async function(docId) {
-    if (!confirm('¿Marcar este caso como cobrado?')) return;
-    try {
-      await updateDoc(doc(db, 'casos', docId), {
-        estado:      'cobrado',
-        fecha_cobro: todayISO(),
-      });
-      showToast('Marcado como cobrado', 'success');
-    } catch (err) {
-      console.error(err);
-      showToast('Error al actualizar', 'error');
-    }
-  };
-
-  // ─── Modal WhatsApp ───────────────────────────────────────────────────────────
-  window.abrirWhatsApp = function(docId) {
-    wappCaso = allCasos.find(c => c._docId === docId);
-    if (!wappCaso) return;
-
-    // Reset
-    document.querySelectorAll('input[name="tratamiento"]').forEach(r => {
-      r.checked  = false;
-      r.onchange = () => generarMensaje();
-    });
-    document.getElementById('wapp-mensaje').value = '';
-
-    openModal('modal-whatsapp');
-  };
-
-  function generarMensaje() {
-    if (!wappCaso) return;
-    const tratamiento = document.querySelector('input[name="tratamiento"]:checked')?.value;
-    if (!tratamiento) return;
-    const mensaje = `${saludo()} ${tratamiento} ${wappCaso.nombre_completo}, habla Matías Ramos de Estudio Alonso (Verificadores de siniestros de La Caja Seguros). Me contacto por el Siniestro N° ${wappCaso.siniestro}.`;
-    document.getElementById('wapp-mensaje').value = mensaje;
-  }
-
-  window.copiarMensaje = async function() {
-    const texto = document.getElementById('wapp-mensaje').value;
-    if (!texto) {
-      showToast('Generá el mensaje primero', 'warning');
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(texto);
-      const btn = document.getElementById('btn-copiar');
-      const original = btn.innerHTML;
-      btn.textContent = '¡Copiado!';
-      btn.classList.replace('bg-emerald-500', 'bg-emerald-700');
-      setTimeout(() => {
-        btn.innerHTML = original;
-        btn.classList.replace('bg-emerald-700', 'bg-emerald-500');
-      }, 1800);
-      showToast('Mensaje copiado al portapapeles', 'success');
-    } catch {
-      showToast('No se pudo copiar al portapapeles', 'error');
-    }
-  };
-
-  // ─── Modal helpers ────────────────────────────────────────────────────────────
-  window.openModal = function(id) {
-    document.getElementById(id).classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-  };
-  window.closeModal = function(id) {
-    document.getElementById(id).classList.add('hidden');
-    document.body.style.overflow = '';
-  };
-
-  // Cerrar al click en el backdrop
-  document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', e => {
-      if (e.target === overlay) closeModal(overlay.id);
+  document.querySelectorAll('.chip-vista').forEach(btn => {
+    btn.addEventListener('click', () => {
+      vistaActual = btn.dataset.vista;
+      renderVistasChips();
+      renderTabla();
     });
   });
+}
 
-  // Cerrar con Escape
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-      ['modal-detalle', 'modal-whatsapp'].forEach(id => {
-        if (!document.getElementById(id).classList.contains('hidden')) closeModal(id);
-      });
-    }
+/* ─────────────────────────────────────────────────
+   TABLA
+───────────────────────────────────────────────── */
+function renderTabla() {
+  const vista = (config.vistas || []).find(v => v.id === vistaActual);
+  const filtroEstados = vista?.estados || [];
+
+  const busq = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+
+  let rows = casos.filter(c => {
+    if (filtroEstados.length && !filtroEstados.includes(c.estado)) return false;
+    if (!busq) return true;
+    return [c.nombre_completo, c.id, c.siniestro].some(
+      f => (f || '').toLowerCase().includes(busq)
+    );
   });
 
-  // ─── Search ───────────────────────────────────────────────────────────────────
-  document.getElementById('search-input').addEventListener('input', e => {
-    searchTerm = e.target.value.trim();
-    renderTable();
+  // Sort: fecha_asignacion desc
+  rows.sort((a, b) => parseFechaDMY(b.fecha_asignacion) - parseFechaDMY(a.fecha_asignacion));
+
+  const tbody = document.getElementById('tabla-body');
+  const empty = document.getElementById('tabla-empty');
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '';
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  tbody.innerHTML = rows.map(c => {
+    const ecfg = ESTADOS_CONFIG[c.estado] || { label: c.estado, cls: 'bg-slate-100 text-slate-600' };
+    const showWapp    = ESTADOS_WAPP.includes(c.estado);
+    const showCobrado = c.estado === 'enviado';
+
+    const wappBtn = showWapp
+      ? `<button class="btn btn-sm btn-amber" data-action="wapp" data-id="${c._id}">💬 WApp</button>`
+      : '';
+    const cobradoBtn = showCobrado
+      ? `<button class="btn btn-sm btn-green" data-action="cobrado" data-id="${c._id}">✓ Cobrado</button>`
+      : '';
+
+    return `
+      <tr>
+        <td class="text-slate-500 text-xs whitespace-nowrap">${c.fecha_asignacion || '—'}</td>
+        <td class="font-mono text-xs font-semibold text-slate-700">${c.id || c._id || '—'}</td>
+        <td class="text-xs text-slate-500 whitespace-nowrap">${c.siniestro || '—'}</td>
+        <td class="font-medium">${c.nombre_completo || '—'}</td>
+        <td><span class="badge ${ecfg.cls}">${ecfg.label}</span></td>
+        <td class="text-slate-500">${c.resultado || '—'}</td>
+        <td class="text-right">
+          <div class="flex gap-1.5 justify-end flex-wrap">
+            <button class="btn btn-sm btn-primary" data-action="ver" data-id="${c._id}">Ver</button>
+            ${wappBtn}
+            ${cobradoBtn}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  // Bind action buttons
+  tbody.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const { action, id } = btn.dataset;
+      if (action === 'ver')     openDetalle(id);
+      if (action === 'wapp')    openWapp(id);
+      if (action === 'cobrado') marcarCobrado(id);
+    });
   });
+}
 
-  // ─── Toast ────────────────────────────────────────────────────────────────────
-  let toastTimeout;
-  window.showToast = function(msg, type = 'success') {
-    const toast = document.getElementById('toast');
-    const inner = document.getElementById('toast-inner');
-    const icon  = document.getElementById('toast-icon');
-    const msgEl = document.getElementById('toast-msg');
+// Search
+document.getElementById('search-input').addEventListener('input', renderTabla);
 
-    const colors = { success: 'bg-emerald-600', error: 'bg-red-500', warning: 'bg-amber-500' };
-    const icons  = { success: '✓', error: '✕', warning: '⚠' };
+/* ─────────────────────────────────────────────────
+   MODAL DETALLE
+───────────────────────────────────────────────── */
+function openDetalle(id) {
+  const caso = casos.find(c => c._id === id);
+  if (!caso) return;
+  casoDetalle = caso;
 
-    inner.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white min-w-[220px] max-w-xs fade-in ${colors[type] || colors.success}`;
-    icon.textContent = icons[type] || '✓';
-    msgEl.textContent = msg;
+  document.getElementById('det-title').textContent    = `${caso.id || caso._id} — ${caso.nombre_completo || ''}`;
+  document.getElementById('det-subtitle').textContent = `Siniestro: ${caso.siniestro || '—'}`;
 
-    toast.classList.remove('hidden');
-    clearTimeout(toastTimeout);
-    toastTimeout = setTimeout(() => toast.classList.add('hidden'), 3000);
+  // Estado select
+  const selE = document.getElementById('det-estado');
+  selE.innerHTML = Object.entries(ESTADOS_CONFIG)
+    .map(([k,v]) => `<option value="${k}" ${caso.estado===k?'selected':''}>${v.label}</option>`)
+    .join('');
+
+  // Resultado select
+  const selR = document.getElementById('det-resultado');
+  selR.innerHTML = `<option value="">— Sin resultado —</option>` +
+    (config.resultados || []).map(r =>
+      `<option value="${r}" ${caso.resultado===r?'selected':''}>${r}</option>`
+    ).join('');
+
+  // Honorarios: pre-fill con default si está vacío/cero
+  const hon = (caso.honorarios && Number(caso.honorarios) !== 0)
+    ? Number(caso.honorarios)
+    : (config.honorario_default || 0);
+  document.getElementById('det-honorarios').value = hon;
+
+  // Observaciones
+  document.getElementById('det-observaciones').value = caso.observaciones || '';
+
+  // Info readonly
+  document.getElementById('ro-poliza').textContent      = caso.poliza || '—';
+  document.getElementById('ro-dni').textContent         = caso.dni || '—';
+  document.getElementById('ro-mail').textContent        = caso.mail || '—';
+  document.getElementById('ro-domicilio').textContent   = caso.domicilio || '—';
+  document.getElementById('ro-vehiculo').textContent    = caso.marca_modelo || '—';
+  document.getElementById('ro-patente').textContent     = caso.patente || '—';
+  document.getElementById('ro-fecha-ocurr').textContent = caso.fecha_ocurrencia || '—';
+  document.getElementById('ro-hora-ocurr').textContent  = caso.hora_ocurrencia || '—';
+
+  openModal('modal-detalle');
+}
+
+async function guardarDetalle() {
+  if (!casoDetalle) return;
+
+  const nuevoEstado = document.getElementById('det-estado').value;
+  const nuevosHon   = Number(document.getElementById('det-honorarios').value) || 0;
+
+  const updates = {
+    estado:        nuevoEstado,
+    resultado:     document.getElementById('det-resultado').value,
+    honorarios:    nuevosHon,
+    observaciones: document.getElementById('det-observaciones').value.trim(),
   };
 
-  // ─── Init ─────────────────────────────────────────────────────────────────────
-  renderChips();
+  // Fechas automáticas
+  if (nuevoEstado === 'enviado' && !casoDetalle.fecha_envio) {
+    updates.fecha_envio = todayStr();
+  }
+  if (nuevoEstado === 'cobrado' && !casoDetalle.fecha_cobro) {
+    updates.fecha_cobro = todayStr();
+  }
+
+  const btn = document.getElementById('det-save');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  try {
+    await updateDoc(doc(db, 'casos', casoDetalle._id), updates);
+    closeModal('modal-detalle');
+    showToast('Guardado ✓');
+  } catch(e) {
+    console.error(e);
+    alert('Error al guardar: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar';
+  }
+}
+
+document.getElementById('det-save').addEventListener('click',   guardarDetalle);
+document.getElementById('det-cancel').addEventListener('click', () => closeModal('modal-detalle'));
+document.getElementById('det-close').addEventListener('click',  () => closeModal('modal-detalle'));
+
+/* ─────────────────────────────────────────────────
+   COBRADO RÁPIDO
+───────────────────────────────────────────────── */
+async function marcarCobrado(id) {
+  if (!confirm('¿Marcar como Cobrado?')) return;
+  const caso = casos.find(c => c._id === id);
+  if (!caso) return;
+  const updates = { estado: 'cobrado' };
+  if (!caso.fecha_cobro) updates.fecha_cobro = todayStr();
+  try {
+    await updateDoc(doc(db, 'casos', id), updates);
+    showToast('Marcado como Cobrado ✓');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+/* ─────────────────────────────────────────────────
+   MODAL WHATSAPP
+───────────────────────────────────────────────── */
+function openWapp(id) {
+  wappCaso = casos.find(c => c._id === id);
+  if (!wappCaso) return;
+  // Reset radio
+  document.getElementById('wapp-sr').checked  = true;
+  document.getElementById('wapp-sra').checked = false;
+  buildWappMsg();
+  openModal('modal-wapp');
+}
+
+function buildWappMsg() {
+  if (!wappCaso) return;
+  const h      = new Date().getHours();
+  const saludo = h < 13 ? 'Buen día' : 'Buenas tardes';
+  const gen    = document.querySelector('input[name="wapp-genero"]:checked')?.value || 'Sr.';
+  const nombre = wappCaso.nombre_completo || '';
+  const sin    = wappCaso.siniestro || '';
+  document.getElementById('wapp-msg').value =
+    `${saludo} ${gen} ${nombre}, habla Matías Ramos de Estudio Alonso (Verificadores de siniestros de La Caja Seguros). Me contacto por el Siniestro N° ${sin}.`;
+}
+
+document.querySelectorAll('input[name="wapp-genero"]').forEach(r =>
+  r.addEventListener('change', buildWappMsg)
+);
+
+document.getElementById('wapp-copy').addEventListener('click', () => {
+  const txt = document.getElementById('wapp-msg').value;
+  if (!txt) return;
+  navigator.clipboard.writeText(txt).then(() => {
+    showToast('Mensaje copiado ✓');
+  }).catch(() => {
+    const ta = document.getElementById('wapp-msg');
+    ta.select(); document.execCommand('copy');
+    showToast('Mensaje copiado ✓');
+  });
+});
+
+document.getElementById('wapp-cancel').addEventListener('click', () => closeModal('modal-wapp'));
+document.getElementById('wapp-close').addEventListener('click',  () => closeModal('modal-wapp'));
+
+/* ─────────────────────────────────────────────────
+   MODAL CONFIGURACIÓN — APERTURA
+───────────────────────────────────────────────── */
+document.getElementById('btn-config').addEventListener('click', () => {
+  cfgResultados = [...(config.resultados || [])];
+  cfgVistas     = structuredClone(config.vistas || []);
+  document.getElementById('cfg-honorario').value = config.honorario_default || 0;
+  renderCfgResultados();
+  renderCfgVistas();
+  openModal('modal-config');
+});
+
+document.getElementById('cfg-close').addEventListener('click', () => closeModal('modal-config'));
+
+/* ── A) RESULTADOS ── */
+function renderCfgResultados() {
+  const cont = document.getElementById('cfg-resultados-list');
+  if (!cfgResultados.length) {
+    cont.innerHTML = '<p class="text-sm text-slate-400">Sin resultados configurados.</p>';
+    return;
+  }
+  cont.innerHTML = cfgResultados.map((r, i) => `
+    <span class="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm font-semibold">
+      ${r}
+      <button data-idx="${i}" class="cfg-del-resultado text-slate-400 hover:text-red-500 ml-1 font-bold leading-none text-base">&times;</button>
+    </span>
+  `).join('');
+
+  cont.querySelectorAll('.cfg-del-resultado').forEach(btn => {
+    btn.addEventListener('click', () => {
+      cfgResultados.splice(Number(btn.dataset.idx), 1);
+      renderCfgResultados();
+    });
+  });
+}
+
+document.getElementById('cfg-add-resultado').addEventListener('click', () => {
+  const inp = document.getElementById('cfg-nuevo-resultado');
+  const val = inp.value.trim();
+  if (!val) return;
+  if (cfgResultados.includes(val)) { showToast('Ya existe ese resultado'); return; }
+  cfgResultados.push(val);
+  inp.value = '';
+  renderCfgResultados();
+});
+
+document.getElementById('cfg-nuevo-resultado').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('cfg-add-resultado').click();
+});
+
+document.getElementById('cfg-save-resultados').addEventListener('click', async () => {
+  try {
+    await updateDoc(doc(db, 'config', 'settings'), { resultados: cfgResultados });
+    showToast('Resultados guardados ✓');
+  } catch(e) { alert('Error: ' + e.message); }
+});
+
+/* ── B) VISTAS ── */
+function renderCfgVistas() {
+  const estadosKeys = Object.keys(ESTADOS_CONFIG);
+  const cont = document.getElementById('cfg-vistas-list');
+
+  cont.innerHTML = cfgVistas.map((v, i) => `
+    <div class="border border-slate-200 rounded-lg p-3 bg-slate-50 space-y-2">
+      <div class="flex items-end gap-2">
+        <div class="flex-1">
+          <label class="lbl">Nombre de la vista</label>
+          <input type="text" class="field cfg-vista-label" data-idx="${i}" value="${v.label}" />
+        </div>
+        ${v.id !== 'todos'
+          ? `<button class="btn btn-danger btn-sm cfg-del-vista" data-idx="${i}">✕ Borrar</button>`
+          : ''}
+      </div>
+      <div>
+        <label class="lbl">Estados incluidos</label>
+        <div class="flex flex-wrap gap-3 mt-1">
+          ${estadosKeys.map(k => `
+            <label class="flex items-center gap-1.5 cursor-pointer text-xs font-medium text-slate-600">
+              <input type="checkbox" class="cfg-vista-estado accent-blue-600"
+                data-idx="${i}" data-estado="${k}"
+                ${(v.estados||[]).includes(k) ? 'checked' : ''} />
+              ${ESTADOS_CONFIG[k].label}
+            </label>
+          `).join('')}
+        </div>
+      </div>
+      <label class="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-600 mt-1">
+        <input type="checkbox" class="cfg-vista-default accent-blue-600" data-idx="${i}"
+          ${v.default ? 'checked' : ''} />
+        Vista por defecto al cargar
+      </label>
+    </div>
+  `).join('');
+
+  // Bind label inputs
+  cont.querySelectorAll('.cfg-vista-label').forEach(inp => {
+    inp.addEventListener('input', () => {
+      cfgVistas[Number(inp.dataset.idx)].label = inp.value;
+    });
+  });
+
+  // Bind estado checkboxes
+  cont.querySelectorAll('.cfg-vista-estado').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const i = Number(cb.dataset.idx);
+      const k = cb.dataset.estado;
+      if (!cfgVistas[i].estados) cfgVistas[i].estados = [];
+      if (cb.checked) {
+        if (!cfgVistas[i].estados.includes(k)) cfgVistas[i].estados.push(k);
+      } else {
+        cfgVistas[i].estados = cfgVistas[i].estados.filter(e => e !== k);
+      }
+    });
+  });
+
+  // Bind default checkboxes
+  cont.querySelectorAll('.cfg-vista-default').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const i = Number(cb.dataset.idx);
+      if (cb.checked) {
+        cfgVistas.forEach((v, idx) => { v.default = idx === i; });
+      } else {
+        cfgVistas[i].default = false;
+      }
+    });
+  });
+
+  // Bind delete buttons
+  cont.querySelectorAll('.cfg-del-vista').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm('¿Eliminar esta vista?')) return;
+      cfgVistas.splice(Number(btn.dataset.idx), 1);
+      renderCfgVistas();
+    });
+  });
+}
+
+document.getElementById('cfg-add-vista').addEventListener('click', () => {
+  cfgVistas.push({
+    id:      'vista_' + Date.now(),
+    label:   'Nueva vista',
+    estados: [],
+    default: false,
+  });
+  renderCfgVistas();
+});
+
+document.getElementById('cfg-save-vistas').addEventListener('click', async () => {
+  try {
+    await updateDoc(doc(db, 'config', 'settings'), { vistas: cfgVistas });
+    showToast('Vistas guardadas ✓');
+  } catch(e) { alert('Error: ' + e.message); }
+});
+
+/* ── C) HONORARIO ── */
+document.getElementById('cfg-save-honorario').addEventListener('click', async () => {
+  const val = Number(document.getElementById('cfg-honorario').value) || 0;
+  try {
+    await updateDoc(doc(db, 'config', 'settings'), { honorario_default: val });
+    showToast('Honorario guardado ✓');
+  } catch(e) { alert('Error: ' + e.message); }
+});
+
 </script>
 </body>
 </html>
