@@ -15,12 +15,12 @@ import os
 import re
 import shutil
 import tempfile
+import unicodedata
 import io
 import pdfplumber
 from docx import Document
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
-from docx.shared import Emu
 import json
 import requests as requests_lib
 from datetime import datetime, timezone
@@ -336,7 +336,42 @@ def crearCarpetaManual(req: https_fn.Request) -> https_fn.Response:
 
 # ── PDF PROCESSING ────────────────────────────────────────────────────────────
 
-PLANTILLA_PATH = os.path.join(os.path.dirname(__file__), "plantilla_informe.docx")
+PLANTILLAS_DIR = os.path.join(os.path.dirname(__file__), "plantillas")
+PLANTILLA_POR_DEFECTO = "choque"
+PLANTILLAS = {
+    "choque":       "choque.docx",
+    "granizo":      "granizo.docx",
+    "incendio":     "incendio.docx",
+    "robo_total":   "robo_total.docx",
+    "robo_parcial": "robo_parcial.docx",
+}
+
+
+def _sin_acentos(txt: str) -> str:
+    return unicodedata.normalize("NFKD", txt or "").encode("ascii", "ignore").decode()
+
+
+def _clave_plantilla(tipo: str) -> str:
+    """
+    Tipo del caso (config/tarifas: 'Robo Total', 'Robo Parcial', ...) -> plantilla.
+    Prosecuciones y ampliaciones siguen con la de choque, como hasta ahora.
+    """
+    t = _sin_acentos(tipo).lower()
+    if not t or "prosecucion" in t or "ampliacion" in t:
+        return PLANTILLA_POR_DEFECTO
+    if "granizo" in t:
+        return "granizo"
+    if "parcial" in t or "rueda" in t:
+        return "robo_parcial"
+    if "incendio" in t:
+        return "incendio"
+    if "robo" in t:
+        return "robo_total"
+    return PLANTILLA_POR_DEFECTO
+
+
+def _plantilla_path(clave: str) -> str:
+    return os.path.join(PLANTILLAS_DIR, PLANTILLAS.get(clave, PLANTILLAS[PLANTILLA_POR_DEFECTO]))
 
 MESES = {
     '01':'enero','02':'febrero','03':'marzo','04':'abril','05':'mayo','06':'junio',
@@ -510,138 +545,6 @@ def _iter_paragraphs(container):
                 yield from _iter_paragraphs(cell)
 
 
-def _normalizar_fuentes(doc, cuerpo: int = 10, subtitulo: int = 12, tope_titulo: int = 14):
-    """
-    Escala de la plantilla: el texto corriente y todas las tablas van en `cuerpo`,
-    los títulos de sección (que en la plantilla venían en 11) en `subtitulo`, y los
-    títulos grandes (>= tope_titulo, como el encabezado a la aseguradora) no se tocan.
-    Se decide por el tamaño que ya trae cada párrafo, así no hay que adivinar cuál
-    es título por su texto.
-    """
-    from docx.shared import Pt
-
-    for tabla in doc.tables:                      # las tablas siempre en cuerpo
-        for fila in tabla.rows:
-            for celda in fila.cells:
-                for p in celda.paragraphs:
-                    for run in p.runs:
-                        run.font.size = Pt(cuerpo)
-
-    for p in doc.paragraphs:                      # párrafos fuera de tablas
-        tamanos = [r.font.size.pt for r in p.runs if r.font.size is not None]
-        actual = max(tamanos) if tamanos else None
-        if actual is not None and actual >= tope_titulo:
-            continue                              # título grande: se respeta
-        destino = subtitulo if (actual is not None and actual > cuerpo) else cuerpo
-        for run in p.runs:
-            run.font.size = Pt(destino)
-
-    # "Sres. Caja de Seguros" aparece dos veces: el de la carátula es el título
-    # grande y se deja; el que encabeza la carta va en subtitulo.
-    encabezados = [p for p in doc.paragraphs
-                   if _norm(p.text).startswith('SRES.CAJADESEGUROS')]
-    for p in encabezados[1:]:
-        for run in p.runs:
-            run.font.size = Pt(subtitulo)
-
-
-def _set_ancho_tabla(tabla, total: int, cols: list = None):
-    """Fija el ancho total de la tabla y el de sus columnas, en twips."""
-    tbl = tabla._tbl
-    tblPr = tbl.tblPr
-
-    W = tblPr.find(qn('w:tblW'))
-    if W is None:
-        W = OxmlElement('w:tblW')
-        tblPr.append(W)
-    W.set(qn('w:w'), str(total))
-    W.set(qn('w:type'), 'dxa')
-
-    # Sin sangría: todas arrancan en el margen izquierdo
-    ind = tblPr.find(qn('w:tblInd'))
-    if ind is not None:
-        ind.set(qn('w:w'), '0')
-        ind.set(qn('w:type'), 'dxa')
-
-    grid = tbl.find(qn('w:tblGrid'))
-    if grid is None:
-        return
-    gridCols = grid.findall(qn('w:gridCol'))
-    if not gridCols:
-        return
-
-    if cols is None or len(cols) != len(gridCols):
-        # Escalar las columnas existentes conservando su proporción
-        actuales = [int(g.get(qn('w:w')) or 0) for g in gridCols]
-        suma = sum(actuales) or 1
-        cols = [round(a * total / suma) for a in actuales]
-        cols[-1] += total - sum(cols)   # el redondeo lo absorbe la última
-
-    for g, w in zip(gridCols, cols):
-        g.set(qn('w:w'), str(w))
-
-    for tr in tbl.findall(qn('w:tr')):
-        tcs = tr.findall(qn('w:tc'))
-        if len(tcs) != len(cols):
-            continue  # fila con celdas combinadas: la maneja el grid
-        for tc, w in zip(tcs, cols):
-            tcPr = tc.find(qn('w:tcPr'))
-            if tcPr is None:
-                tcPr = OxmlElement('w:tcPr')
-                tc.insert(0, tcPr)
-            tcW = tcPr.find(qn('w:tcW'))
-            if tcW is None:
-                tcW = OxmlElement('w:tcW')
-                tcPr.append(tcW)
-            tcW.set(qn('w:w'), str(w))
-            tcW.set(qn('w:type'), 'dxa')
-
-
-def _sin_sangrias_negativas(doc):
-    """
-    Varias celdas de la plantilla traen sangría negativa (ej. 'Marca y Modelo'
-    con ind=-67), que descoloca el texto respecto del resto de la columna.
-    """
-    for tabla in doc.tables:
-        for fila in tabla.rows:
-            for celda in fila.cells:
-                for p in celda.paragraphs:
-                    pPr = p._p.find(qn('w:pPr'))
-                    ind = pPr.find(qn('w:ind')) if pPr is not None else None
-                    if ind is None:
-                        continue
-                    for attr in ('w:left', 'w:start', 'w:firstLine', 'w:hanging'):
-                        v = ind.get(qn(attr))
-                        if v is not None and int(v) < 0:
-                            ind.set(qn(attr), '0')
-
-
-def _alinear_tablas(doc):
-    """
-    En la plantilla las tablas tienen anchos y sangrías dispares: la carátula va
-    de 9568 a 9640, y en la página 2 'LESIONES' llega con tblW=0 y sangría +38
-    mientras las de arriba tienen -34, por lo que sale más angosta y corrida.
-    Se llevan todas al ancho útil de la página, sin sangría, y las de igual
-    cantidad de columnas comparten los mismos cortes para que queden alineadas.
-    """
-    sec = doc.sections[0]
-    util = Emu(sec.page_width - sec.left_margin - sec.right_margin).twips
-
-    # Cortes fijos por estructura: 2 col = etiqueta/valor (carátula),
-    # 3 col = rubro/campo/dato (vehículos y lesiones de la página 2).
-    cortes = {
-        2: [3403, util - 3403],
-        3: [2223, 3682, util - 2223 - 3682],
-    }
-
-    for tabla in doc.tables:
-        grid = tabla._tbl.find(qn('w:tblGrid'))
-        n = len(grid.findall(qn('w:gridCol'))) if grid is not None else 0
-        _set_ancho_tabla(tabla, util, cortes.get(n))
-
-    _sin_sangrias_negativas(doc)
-
-
 def _actualizar_fecha_carta(doc):
     """
     La plantilla tiene la fecha escrita a mano ('... abril de 2026').
@@ -661,19 +564,26 @@ CONCLUSIONES_TITULO = 'DILIGENCIAS COMPLEMENTARIAS'
 CONCLUSIONES_FIN    = 'OPINI'
 
 
-def _conclusiones_por_defecto(db) -> list:
+def _conclusiones_por_defecto(db, clave: str = PLANTILLA_POR_DEFECTO) -> list:
     """
     Textos de las conclusiones marcadas con la estrella en el módulo web
     (config/conclusiones → items[].porDefecto). Si falla, devuelve []
     y el DOCX conserva el texto modelo de la plantilla.
+
+    Una conclusión puede traer `tipo` (ej. 'Incendio'): si hay favoritas del
+    tipo del caso se usan esas; si no, las favoritas sin tipo (las de siempre).
     """
     try:
         doc = db.collection("config").document("conclusiones").get()
         if not doc.exists:
             return []
         items = (doc.to_dict() or {}).get("items", []) or []
-        return [i.get("texto", "").strip() for i in items
-                if i.get("porDefecto") and (i.get("texto") or "").strip()]
+        favoritas = [i for i in items
+                     if i.get("porDefecto") and (i.get("texto") or "").strip()]
+        del_tipo = [i for i in favoritas
+                    if i.get("tipo") and _clave_plantilla(i["tipo"]) == clave]
+        elegidas = del_tipo or [i for i in favoritas if not i.get("tipo")]
+        return [i["texto"].strip() for i in elegidas]
     except Exception as e:
         print(f"[conclusiones] no se pudieron leer: {e}")
         return []
@@ -757,8 +667,9 @@ def _set_resultado_box(doc, resultado: str):
 
 
 def _completar_docx(dest_path: str, datos: dict, case_id: str, siniestro: str,
-                    conclusiones: list = None, resultado: str = ''):
-    shutil.copy2(PLANTILLA_PATH, dest_path)
+                    conclusiones: list = None, resultado: str = '',
+                    plantilla: str = PLANTILLA_POR_DEFECTO):
+    shutil.copy2(_plantilla_path(plantilla), dest_path)
     doc = Document(dest_path)
     tables = doc.tables
     if len(tables) > 0:
@@ -768,6 +679,9 @@ def _completar_docx(dest_path: str, datos: dict, case_id: str, siniestro: str,
         _set_cell(t.rows[2].cells[1], case_id)
         _set_cell(t.rows[3].cells[1], datos.get('fecha_ocurrencia', ''))
         _set_cell(t.rows[4].cells[1], datos.get('fecha_denuncia', ''))
+        # 'COBERTURA Y USO' la completa el verificador: se vacía el valor modelo
+        if len(t.rows) > 5 and _norm(t.rows[5].cells[0].text).startswith('COBERTURA'):
+            _set_cell(t.rows[5].cells[1], datos.get('cobertura', ''))
     if len(tables) > 1:
         t = tables[1]
         _set_cell(t.rows[0].cells[1], datos.get('nombre_completo', ''))
@@ -779,9 +693,9 @@ def _completar_docx(dest_path: str, datos: dict, case_id: str, siniestro: str,
         _set_cell(tables[2].rows[2].cells[1], datos['relato'])
     _reemplazar_conclusiones(doc, conclusiones or [])
     _set_resultado_box(doc, resultado)
-    _alinear_tablas(doc)
     _actualizar_fecha_carta(doc)
-    _normalizar_fuentes(doc)  # último: cubre también lo recién insertado
+    # Sin retoques de fuentes ni anchos: la plantilla de cada tipo ya viene
+    # con el formato final y lo insertado hereda el formato de su celda/párrafo.
     doc.save(dest_path)
 
 
@@ -889,9 +803,12 @@ def procesarPDF(req: https_fn.Request) -> https_fn.Response:
 
         nombre_docx = f"{caso_id}.{siniestro}.{apellido}.docx"
         docx_local = os.path.join(tmp_dir, nombre_docx)
+        plantilla = _clave_plantilla(caso.get("tipo") or "")
+        print(f"[procesarPDF] tipo={caso.get('tipo')!r} -> plantilla {plantilla}")
         _completar_docx(docx_local, datos, caso_id, siniestro,
-                        conclusiones=_conclusiones_por_defecto(db),
-                        resultado=caso.get("resultado") or "")
+                        conclusiones=_conclusiones_por_defecto(db, plantilla),
+                        resultado=caso.get("resultado") or "",
+                        plantilla=plantilla)
 
         media = MediaFileUpload(docx_local, mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document", resumable=True)
         service.files().create(body={"name": nombre_docx, "parents": [folder_id]}, media_body=media, fields="id").execute()
@@ -922,7 +839,8 @@ def procesarPDF(req: https_fn.Request) -> https_fn.Response:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
         return https_fn.Response(
-            json.dumps({"ok": True, "nombre_completo": nombre_completo, "docx": nombre_docx}),
+            json.dumps({"ok": True, "nombre_completo": nombre_completo, "docx": nombre_docx,
+                        "plantilla": plantilla}),
             status=200,
             content_type="application/json",
             headers=CORS_HEADERS,
