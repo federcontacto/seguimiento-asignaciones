@@ -31,9 +31,11 @@ initialize_app()
 GOOGLE_CLIENT_ID = SecretParam("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = SecretParam("GOOGLE_CLIENT_SECRET")
 SCOPES = ["https://www.googleapis.com/auth/drive"]
-APP_URL = "https://siniestros-equipo.web.app"
+# Por proyecto (producción / pruebas): vienen de functions/.env.<projectId>.
+# Sin .env se usan los valores de producción, como siempre.
+APP_URL = os.environ.get("APP_URL", "https://siniestros-equipo.web.app")
 
-CALLBACK_URL = "https://driveauthcallback-43i7e7zhfq-uc.a.run.app"
+CALLBACK_URL = os.environ.get("DRIVE_CALLBACK_URL", "https://driveauthcallback-43i7e7zhfq-uc.a.run.app")
 
 
 def _flow(client_id: str, client_secret: str):
@@ -259,7 +261,7 @@ def crearCarpetaCaso(event: firestore_fn.Event) -> None:
 
 
 _CORS_CARPETA = {
-    "Access-Control-Allow-Origin": "https://siniestros-equipo.web.app",
+    "Access-Control-Allow-Origin": APP_URL,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
 }
@@ -711,7 +713,7 @@ def _descargar_archivo_drive(service, file_id: str, dest_path: str):
 # ── CLOUD FUNCTION: PROCESAR PDF ─────────────────────────────────────────────
 
 CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "https://siniestros-equipo.web.app",
+    "Access-Control-Allow-Origin": APP_URL,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
 }
